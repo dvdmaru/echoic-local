@@ -1,0 +1,19 @@
+.venv/
+.claude/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+# 錄音、逐字稿、摘要永遠不進 repo（只留在使用者自己的電腦）
+*.wav
+*.pcm
+*.srt
+*.m4a
+*.mp3
+summary.md
+entities.md
+speakers.json
+transcript-by-minute.txt
+.DS_Store

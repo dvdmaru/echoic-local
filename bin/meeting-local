@@ -1,0 +1,18 @@
+#!/bin/sh
+# 免啟用 venv 的入口：ln -sf "$PWD/bin/meeting-local" ~/.local/bin/meeting-local
+# 透過 symlink 呼叫時 $0 是 symlink 本身，要一路解析回 repo 裡的真身再找 .venv。
+SELF="$0"
+while [ -L "$SELF" ]; do
+  DIR="$(cd "$(dirname "$SELF")" && pwd)"
+  SELF="$(readlink "$SELF")"
+  case "$SELF" in
+    /*) ;;
+    *) SELF="$DIR/$SELF" ;;
+  esac
+done
+HERE="$(cd "$(dirname "$SELF")/.." && pwd)"
+if [ ! -x "$HERE/.venv/bin/meeting-local" ]; then
+  echo "找不到 $HERE/.venv/bin/meeting-local；先在 $HERE 跑：uv venv --python 3.13 .venv && uv pip install --python .venv/bin/python -e \".[dev]\"" >&2
+  exit 1
+fi
+exec "$HERE/.venv/bin/meeting-local" "$@"

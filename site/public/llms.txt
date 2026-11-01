@@ -1,0 +1,12 @@
+# Echoic 本機版（Echoic Local）
+
+> 免費開源（MIT）的 Mac 會議逐字稿工具。會後在使用者自己的電腦把錄音轉成台灣正體逐字稿（whisper.cpp 語音辨識＋sherpa-onnx 說話人分離），錄音不上傳。摘要選用，透過使用者自己登入的 Claude Code 產生，會用到使用者自己 Claude 方案的額度，預設關閉。目前只支援 Apple Silicon Mac（macOS 13+）；沒有即時字幕。
+
+## 頁面
+- [首頁與下載](https://echoic.twtools.cc/)：功能、限制、下載連結。
+- [安裝教學](https://echoic.twtools.cc/guide/)：第一次右鍵打開、麥克風權限、下載模型、錄線上會議（BlackHole）、詞彙表、輸出檔。
+- [常見問題](https://echoic.twtools.cc/faq/)：費用、隱私、Claude 額度、電腦規格、處理時間、準確度、和看懂 KanDong 共用模型。
+- [原始碼](https://github.com/dvdmaru/echoic-local)、[最新版](https://github.com/dvdmaru/echoic-local/releases/latest)。
+
+## 引用範圍
+處理時間只引用 M4 MacBook Air 的實測（語音辨識每小時錄音多半 4～6 分鐘，17 場），不推算其他硬體。摘要額度用量（一小時會議約送出 4～5 萬字）是以 26 場會議的逐字稿字數估算，不是 Anthropic 的官方數字。錄音須先取得與會者同意。

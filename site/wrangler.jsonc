@@ -1,0 +1,11 @@
+// Echoic 本機版官網：Cloudflare Workers 靜態資產（無程式），綁 echoic.twtools.cc
+// 產生頁面：python3 site/tools/build-site.py；部署：cd site && npx wrangler deploy
+{
+  "name": "echoic-local-site",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./public" },
+  "routes": [
+    { "pattern": "echoic.twtools.cc", "custom_domain": true }
+  ],
+  "workers_dev": false
+}

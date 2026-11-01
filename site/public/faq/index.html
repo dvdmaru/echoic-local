@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>常見問題｜Echoic 本機版</title>
+<meta name="description" content="Echoic 本機版 常見問題：要不要錢、錄音會不會上傳、摘要會不會用到 Claude 額度、電腦規格、處理時間、能不能錄線上會議。">
+<link rel="canonical" href="https://echoic.twtools.cc/faq/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Echoic 本機版">
+<meta property="og:title" content="常見問題｜Echoic 本機版">
+<meta property="og:description" content="Echoic 本機版 常見問題：要不要錢、錄音會不會上傳、摘要會不會用到 Claude 額度、電腦規格、處理時間、能不能錄線上會議。">
+<meta property="og:url" content="https://echoic.twtools.cc/faq/">
+<meta property="og:image" content="https://echoic.twtools.cc/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="zh_TW">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0f5c57">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f5c57'/%3E%3Cg fill='%23ffd166'%3E%3Crect x='6' y='13' width='3' height='6' rx='1.5'/%3E%3Crect x='11' y='9' width='3' height='14' rx='1.5'/%3E%3Crect x='16' y='6' width='3' height='20' rx='1.5'/%3E%3Crect x='21' y='10' width='3' height='12' rx='1.5'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<link rel="stylesheet" href="/site.css">
+
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Echoic 本機版", "alternateName": "Echoic Local", "description": "Echoic 本機版是免費開源的會議逐字稿工具：在自己的 Mac 上把會議錄音轉成台灣正體逐字稿，分好誰在說話、每段有時間戳，錄音不上傳。想要摘要，再用你自己登入的 Claude 產生。目前支援 Apple Silicon Mac。", "applicationCategory": "BusinessApplication", "operatingSystem": "macOS 13+ (Apple Silicon)", "softwareVersion": "0.3.0", "inLanguage": "zh-TW", "isAccessibleForFree": true, "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "TWD"}, "url": "https://echoic.twtools.cc/", "downloadUrl": "https://github.com/dvdmaru/echoic-local/releases/latest", "codeRepository": "https://github.com/dvdmaru/echoic-local"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "要錢嗎？", "acceptedAnswer": {"@type": "Answer", "text": "不用。Echoic 本機版是 MIT 授權的開源軟體，語音辨識與說話人分離都在你的電腦上執行，沒有月費。摘要是選用功能，用的是你自己的 Claude 方案。"}}, {"@type": "Question", "name": "錄音會被上傳嗎？", "acceptedAnswer": {"@type": "Answer", "text": "不會。錄音、逐字稿都只存在你的電腦（預設在「下載項目」的 meetings 資料夾）。只有你打開摘要功能時，逐字稿文字才會送進你自己登入的 Claude Code；錄音檔本身一律不送。下載軟體與模型仍需要網路。"}}, {"@type": "Question", "name": "摘要會吃掉我的 Claude 額度嗎？", "acceptedAnswer": {"@type": "Answer", "text": "會，所以預設關。一小時的會議大約送出 4～5 萬字、拿回約 1 萬字（專名候選表與摘要各一次）。用 Pro（每月 US$20）方案時，一天做好幾場長會議可能比較快碰到用量上限。你可以只出逐字稿，想要哪一場的摘要再單獨按一次。"}}, {"@type": "Question", "name": "沒有 Claude 可以用嗎？", "acceptedAnswer": {"@type": "Answer", "text": "可以。沒裝 Claude Code 時只會產出逐字稿、說話人與時間戳，其他功能都一樣。"}}, {"@type": "Question", "name": "我的電腦能用嗎？", "acceptedAnswer": {"@type": "Answer", "text": "目前只有 Apple Silicon（M1 以後）的 Mac 版，macOS 13 以上。Windows 版開發中。語音辨識模型約 1.6 GB，執行時建議至少 16 GB 記憶體；同時開很多 Chrome 分頁會變慢。"}}, {"@type": "Question", "name": "要多久？", "acceptedAnswer": {"@type": "Answer", "text": "M4 MacBook Air 實測 17 場會議：語音辨識每小時錄音多半要 4～6 分鐘，說話人分離另外要幾分鐘。實際時間依錄音長度、電腦與同時開的程式而定。"}}, {"@type": "Question", "name": "可以錄 Google Meet、Teams、Zoom 嗎？", "acceptedAnswer": {"@type": "Answer", "text": "可以錄你的麥克風和電腦播出的聲音。錄對方的聲音要先裝免費的 BlackHole 虛擬音源，並在「音訊 MIDI 設定」建立多重輸出裝置，步驟在安裝教學。不管錄什麼，都請先取得與會者同意。"}}, {"@type": "Question", "name": "有即時字幕嗎？", "acceptedAnswer": {"@type": "Answer", "text": "沒有。Echoic 本機版只做會後批次轉錄：錄完再轉，換來的是不用連網、不用月費。"}}, {"@type": "Question", "name": "逐字稿準嗎？", "acceptedAnswer": {"@type": "Answer", "text": "語音辨識難免出錯，尤其是同音的專有名詞（例如「輝達」寫成「揮達」）。常錯的詞收進「詞彙表」一次，之後每場會自動修正。說話人分離在多人同時講話時也會分錯；知道與會人數就填進去，會準很多。重要內容請回聽原音，每一段都有時間戳。"}}, {"@type": "Question", "name": "和「看懂 KanDong」有什麼關係？", "acceptedAnswer": {"@type": "Answer", "text": "兩個都是 twtools 的免費本機工具，共用同一顆語音辨識模型（存在 ~/.cache/twtools/models）。裝過其中一個，另一個通常不必再下載模型。"}}]}</script>
+</head>
+<body>
+<header class="top"><div class="wrap bar">
+<a class="logo" href="/" aria-label="Echoic 本機版 首頁"><span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>Echoic <b>本機版</b></span></a>
+<nav><a href="/guide/">安裝教學</a><a href="/faq/">常見問題</a><a href="https://github.com/dvdmaru/echoic-local">GitHub</a></nav>
+</div></header>
+<main class="wrap doc"><h1>常見問題</h1><div class="faq"><details open><summary>要錢嗎？</summary><p>不用。Echoic 本機版是 MIT 授權的開源軟體，語音辨識與說話人分離都在你的電腦上執行，沒有月費。摘要是選用功能，用的是你自己的 Claude 方案。</p></details><details open><summary>錄音會被上傳嗎？</summary><p>不會。錄音、逐字稿都只存在你的電腦（預設在「下載項目」的 meetings 資料夾）。只有你打開摘要功能時，逐字稿文字才會送進你自己登入的 Claude Code；錄音檔本身一律不送。下載軟體與模型仍需要網路。</p></details><details open><summary>摘要會吃掉我的 Claude 額度嗎？</summary><p>會，所以預設關。一小時的會議大約送出 4～5 萬字、拿回約 1 萬字（專名候選表與摘要各一次）。用 Pro（每月 US$20）方案時，一天做好幾場長會議可能比較快碰到用量上限。你可以只出逐字稿，想要哪一場的摘要再單獨按一次。</p></details><details open><summary>沒有 Claude 可以用嗎？</summary><p>可以。沒裝 Claude Code 時只會產出逐字稿、說話人與時間戳，其他功能都一樣。</p></details><details open><summary>我的電腦能用嗎？</summary><p>目前只有 Apple Silicon（M1 以後）的 Mac 版，macOS 13 以上。Windows 版開發中。語音辨識模型約 1.6 GB，執行時建議至少 16 GB 記憶體；同時開很多 Chrome 分頁會變慢。</p></details><details open><summary>要多久？</summary><p>M4 MacBook Air 實測 17 場會議：語音辨識每小時錄音多半要 4～6 分鐘，說話人分離另外要幾分鐘。實際時間依錄音長度、電腦與同時開的程式而定。</p></details><details open><summary>可以錄 Google Meet、Teams、Zoom 嗎？</summary><p>可以錄你的麥克風和電腦播出的聲音。錄對方的聲音要先裝免費的 BlackHole 虛擬音源，並在「音訊 MIDI 設定」建立多重輸出裝置，步驟在安裝教學。不管錄什麼，都請先取得與會者同意。</p></details><details open><summary>有即時字幕嗎？</summary><p>沒有。Echoic 本機版只做會後批次轉錄：錄完再轉，換來的是不用連網、不用月費。</p></details><details open><summary>逐字稿準嗎？</summary><p>語音辨識難免出錯，尤其是同音的專有名詞（例如「輝達」寫成「揮達」）。常錯的詞收進「詞彙表」一次，之後每場會自動修正。說話人分離在多人同時講話時也會分錯；知道與會人數就填進去，會準很多。重要內容請回聽原音，每一段都有時間戳。</p></details><details open><summary>和「看懂 KanDong」有什麼關係？</summary><p>兩個都是 twtools 的免費本機工具，共用同一顆語音辨識模型（存在 ~/.cache/twtools/models）。裝過其中一個，另一個通常不必再下載模型。</p></details></div>
+<p class="cta"><a class="btn" href="https://github.com/dvdmaru/echoic-local/releases/latest/download/EchoicLocal-mac-arm64.dmg" data-dl="mac">下載 Mac 版<small>Apple Silicon・macOS 13 以上・免費</small></a></p></main>
+<footer class="foot"><div class="wrap">
+<p><strong>Echoic 本機版</strong>：免費開源（MIT）的會議逐字稿工具。語音辨識使用 whisper.cpp、說話人分離使用 sherpa-onnx，都在你的電腦上執行。</p>
+<p>錄音前請先取得與會者同意。逐字稿與摘要可能有錯，重要內容請回聽原音。</p>
+<p><a href="https://github.com/dvdmaru/echoic-local">原始碼</a>｜<a href="https://github.com/dvdmaru/echoic-local/blob/main/THIRD_PARTY.md">第三方授權</a>｜<a href="https://kandong.twtools.cc/">姊妹工具：看懂 KanDong</a>｜<a href="https://twtools.cc/">twtools.cc</a></p>
+</div></footer>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "note": "跟「看懂 KanDong」共用的模型清單。檔名＋SHA256 相同就是同一顆；兩個工具都會掃 shared_dir。改這份要同步改看懂 repo 的同名檔。",
+  "shared_dir": {
+    "mac": "~/.cache/twtools/models",
+    "windows": "%USERPROFILE%\\.cache\\twtools\\models"
+  },
+  "models": [
+    {
+      "file": "ggml-large-v3-turbo-q5_0.bin",
+      "family": "whisper-large-v3-turbo",
+      "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin",
+      "sha256": "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2",
+      "size": 574041195
+    },
+    {
+      "file": "ggml-large-v3-turbo.bin",
+      "family": "whisper-large-v3-turbo",
+      "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin",
+      "sha256": "1fc70f774d38eb169993ac391eea357ef47c88757ef72ee5943879b7e8e2bc69",
+      "size": 1624555275
+    }
+  ]
+}
