@@ -13,7 +13,7 @@
 ## 安裝（Mac）
 
 1. 到 [Releases](../../releases/latest) 下載 `EchoicLocal-mac-arm64.dmg`，打開後把「Echoic 本機版」拖到「應用程式」。
-2. **第一次開啟**：App 沒有付費的 Apple 公證，macOS 會擋。請在「應用程式」資料夾對它按**右鍵 →「打開」→「打開」**；或到「系統設定 → 隱私權與安全性」底部按「仍要打開」。只要做一次。
+2. **第一次開啟**：App 沒有付費的 Apple 公證，第一次雙擊時 macOS 會說「無法打開」，只給「丟到垃圾桶」和「完成」：按**「完成」**，再到**「系統設定 → 隱私權與安全性」**，往下捲到「安全性」按**「仍要打開」**（Open Anyway），輸入密碼後再按「打開」。只要做一次。macOS 14 以前也可以對 App 按右鍵 →「打開」，macOS 15 起這條捷徑沒了。熟悉終端機的話，也可以 `xattr -dr com.apple.quarantine "/Applications/Echoic 本機版.app"` 再雙擊。
 3. 允許麥克風權限。
 4. 按「下載語音辨識模型」（約 1.6 GB，從 Hugging Face 官方下載並比對 SHA256）。裝過「[看懂 KanDong](https://kandong.twtools.cc)」的人通常不用再下載，兩個工具共用同一個模型資料夾 `~/.cache/twtools/models/`。
 

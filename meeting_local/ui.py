@@ -167,7 +167,7 @@ class RecorderUI:
         """把封裝版缺少的元件說清楚，避免使用者錄完才知道不能轉錄。"""
         missing = []
         if not Path(config.WHISPER_SERVER).exists():
-            missing.append("內建語音辨識引擎")
+            missing.append("內建語音辨識引擎" if config.FROZEN else "whisper-server（brew install whisper-cpp）")
         if not Path(config.WHISPER_MODEL).exists():
             missing.append("語音辨識模型")
         if not self.has_claude:
@@ -183,7 +183,13 @@ class RecorderUI:
         if self.busy:
             return
         if not Path(config.WHISPER_SERVER).exists():
-            messagebox.showerror("缺少語音辨識引擎", f"這個 App 的內建引擎不存在或已損毀，請重新安裝{config.APP_NAME}。")
+            if config.FROZEN:
+                detail = f"這個 App 的內建引擎不存在或已損毀，請重新安裝{config.APP_NAME}。"
+            else:  # 從原始碼跑：引擎要自己裝，「重新安裝 App」是錯的指引
+                detail = (f"找不到 whisper-server（{config.WHISPER_SERVER}）。\n"
+                          "從原始碼跑請先 brew install whisper-cpp（Apple Silicon 版），"
+                          "或設環境變數 MEETING_LOCAL_WHISPER_SERVER 指到它。")
+            messagebox.showerror("缺少語音辨識引擎", detail)
             return
         if not messagebox.askyesno(
             "下載語音辨識模型",

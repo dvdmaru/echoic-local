@@ -2,7 +2,7 @@
 
     python3 site/tools/build-site.py
 
-GA4 評估 ID 放環境變數 ECHOIC_GA_ID；沒給就不放追蹤碼（不會產出假 ID）。
+GA4 評估 ID 預設是 echoic.twtools.cc 的資料串流（Charlie 2026-11-01 建）；ECHOIC_GA_ID 可覆蓋，設成空字串就不放追蹤碼。
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ DOWNLOAD = f"{REPO}/releases/latest/download/{DMG}"
 RELEASES = f"{REPO}/releases/latest"
 VERSION = "0.3.0"
 DATE = "2026-11-01"
-GA_ID = os.environ.get("ECHOIC_GA_ID", "").strip()
+GA_ID = os.environ.get("ECHOIC_GA_ID", "G-80DLMF08HF").strip()
 KANDONG = "https://kandong.twtools.cc/"
 CLAUDE_CODE = "https://docs.claude.com/en/docs/claude-code"
 BLACKHOLE = "https://existential.audio/blackhole/"
@@ -66,9 +66,10 @@ FAQ = [
 
 GUIDE_STEPS = [
     ("下載", f'到 <a href="{DOWNLOAD}" data-dl="mac">GitHub Releases 下載 {DMG}</a>，打開後把「{NAME}」拖到「應用程式」。'),
-    ("第一次開啟：右鍵 →「打開」",
-     "這個 App 沒有付費的 Apple 公證，直接雙擊時 macOS 會擋下來。到「應用程式」資料夾，對它按<strong>右鍵 →「打開」</strong>，"
-     "跳出的視窗再按一次「打開」。被擋住也沒關係：到「系統設定 → 隱私權與安全性」，在最下面按「仍要打開」。只需要做一次。"),
+    ("第一次開啟：到「隱私權與安全性」按「仍要打開」",
+     "這個 App 沒有付費的 Apple 公證，第一次雙擊時 macOS 會跳出「無法打開」的警告，只有「丟到垃圾桶」和「完成」兩個按鈕：按<strong>「完成」</strong>。"
+     "接著打開「系統設定 → 隱私權與安全性」，往下捲到「安全性」，會看到 App 已被阻擋，按<strong>「仍要打開」</strong>（英文介面是 Open Anyway），"
+     "輸入密碼後再按一次「打開」。只需要做一次。macOS 14 以前也可以對 App 按右鍵 →「打開」；macOS 15 起 Apple 拿掉了這條捷徑。"),
     ("允許麥克風", "第一次錄音時 macOS 會問能不能用麥克風，按「允許」。錄音只存在你的電腦。"),
     ("下載語音辨識模型",
      f"按「下載語音辨識模型」，約 1.6 GB，從 Hugging Face 官方下載並比對 SHA256。裝過<a href=\"{KANDONG}\">看懂 KanDong</a>的話，"
@@ -205,7 +206,7 @@ def page_index() -> str:
 <li>沒有即時字幕，只做會後轉錄。</li>
 <li>目前只有 Apple Silicon Mac 版；Windows 版開發中。</li>
 <li>同音的專有名詞會寫錯，多人同時講話時說話人會分錯。重要內容請回聽原音。</li>
-<li>App 沒有付費的 Apple 公證，第一次開啟要「右鍵 → 打開」。</li>
+<li>App 沒有付費的 Apple 公證，第一次開啟要到「系統設定 → 隱私權與安全性」按「仍要打開」。</li>
 </ul></section>
 
 <section class="wrap"><h2 class="sec">常見問題</h2><div class="faq">{faq_short}</div><p><a href="/faq/">看全部常見問題 →</a></p></section>
@@ -215,26 +216,29 @@ def page_index() -> str:
 """ + FOOT
 
 
-GATEKEEPER_SVG = f"""<svg class="illus" viewBox="0 0 640 260" role="img" aria-label="在應用程式資料夾對 {NAME} 按右鍵，選「打開」">
+GATEKEEPER_SVG = f"""<svg class="illus" viewBox="0 0 640 260" role="img" aria-label="系統設定的隱私權與安全性頁面，在安全性區塊按「仍要打開」">
 <rect x="0" y="0" width="640" height="260" rx="16" fill="#fff"/>
-<rect x="24" y="24" width="250" height="212" rx="12" fill="#f3efe6"/>
-<text x="44" y="56" font-size="16" fill="#555">應用程式</text>
-<rect x="60" y="80" width="72" height="72" rx="16" fill="#0f5c57"/>
-<g fill="#ffd166"><rect x="76" y="108" width="7" height="16" rx="3"/><rect x="88" y="98" width="7" height="36" rx="3"/><rect x="100" y="90" width="7" height="52" rx="3"/><rect x="112" y="102" width="7" height="28" rx="3"/></g>
-<text x="96" y="176" font-size="14" text-anchor="middle" fill="#1d2321">{NAME}</text>
-<path d="M140 120 L190 120" stroke="#ff7a59" stroke-width="3" marker-end="url(#a)"/>
-<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#ff7a59"/></marker></defs>
-<rect x="300" y="40" width="160" height="150" rx="10" fill="#fff" stroke="#ccc"/>
-<rect x="308" y="52" width="144" height="30" rx="6" fill="#ff7a59"/>
-<text x="320" y="73" font-size="15" fill="#fff" font-weight="700">打開</text>
-<text x="320" y="108" font-size="15" fill="#777">顯示套件內容</text>
-<text x="320" y="138" font-size="15" fill="#777">丟到垃圾桶</text>
-<text x="320" y="168" font-size="15" fill="#777">取得資訊</text>
-<text x="480" y="80" font-size="15" fill="#1d2321">① 右鍵（或按住</text>
-<text x="480" y="102" font-size="15" fill="#1d2321">control 再點）</text>
-<text x="480" y="134" font-size="15" fill="#1d2321">② 選「打開」</text>
-<text x="480" y="166" font-size="15" fill="#1d2321">③ 再按一次</text>
-<text x="480" y="188" font-size="15" fill="#1d2321">「打開」</text>
+<rect x="24" y="24" width="392" height="212" rx="12" fill="#f3efe6"/>
+<circle cx="44" cy="42" r="5" fill="#ff5f57"/><circle cx="60" cy="42" r="5" fill="#febc2e"/><circle cx="76" cy="42" r="5" fill="#28c840"/>
+<text x="44" y="78" font-size="14" fill="#777">一般</text>
+<text x="44" y="104" font-size="14" fill="#777">外觀</text>
+<rect x="34" y="116" width="128" height="28" rx="6" fill="#0f5c57"/>
+<text x="44" y="135" font-size="14" fill="#fff" font-weight="700">隱私權與安全性</text>
+<text x="44" y="166" font-size="14" fill="#777">桌面與 Dock</text>
+<text x="44" y="192" font-size="14" fill="#777">顯示器</text>
+<rect x="176" y="60" width="226" height="164" rx="10" fill="#fff"/>
+<text x="192" y="88" font-size="15" fill="#1d2321" font-weight="700">安全性</text>
+<text x="192" y="116" font-size="13" fill="#555">已阻擋「{NAME}」，</text>
+<text x="192" y="136" font-size="13" fill="#555">因為無法確認它沒有</text>
+<text x="192" y="156" font-size="13" fill="#555">惡意軟體。</text>
+<rect x="276" y="174" width="112" height="32" rx="8" fill="#ff7a59"/>
+<text x="332" y="195" font-size="15" fill="#fff" font-weight="700" text-anchor="middle">仍要打開</text>
+<text x="436" y="70" font-size="15" fill="#1d2321">① 先雙擊一次，</text>
+<text x="436" y="92" font-size="15" fill="#1d2321">警告視窗按「完成」</text>
+<text x="436" y="128" font-size="15" fill="#1d2321">② 系統設定 →</text>
+<text x="436" y="150" font-size="15" fill="#1d2321">隱私權與安全性</text>
+<text x="436" y="186" font-size="15" fill="#1d2321">③ 往下捲，按</text>
+<text x="436" y="208" font-size="15" fill="#1d2321">「仍要打開」</text>
 </svg>"""
 
 
@@ -243,7 +247,7 @@ def page_guide() -> str:
                     for i, (t, body) in enumerate(GUIDE_STEPS))
     howto = {"@context": "https://schema.org", "@type": "HowTo", "name": f"安裝並使用 {NAME}",
              "step": [{"@type": "HowToStep", "name": t, "position": i + 1} for i, (t, _) in enumerate(GUIDE_STEPS)]}
-    return head(f"安裝教學｜{NAME}", f"{NAME} Mac 版安裝步驟：下載 dmg、第一次右鍵打開、允許麥克風、下載語音辨識模型、錄音轉逐字稿，以及選用的 Claude 摘要。",
+    return head(f"安裝教學｜{NAME}", f"{NAME} Mac 版安裝步驟：下載 dmg、第一次開啟按「仍要打開」、允許麥克風、下載語音辨識模型、錄音轉逐字稿，以及選用的 Claude 摘要。",
                 "/guide/", [howto]) + f"""<main class="wrap doc">
 <h1>安裝教學</h1>
 <p class="lead">需要 Apple Silicon（M1 以後）的 Mac、macOS 13 以上，以及約 2 GB 的空間（App＋語音辨識模型）。</p>
@@ -273,7 +277,7 @@ def page_guide() -> str:
 
 <h2 id="trouble">卡住了？</h2>
 <ul>
-<li><strong>打不開、說「無法確認開發者」</strong>：照第 2 步用右鍵打開，或到「隱私權與安全性」按「仍要打開」。</li>
+<li><strong>打不開、說「無法打開」或「無法確認開發者」</strong>：照第 2 步到「系統設定 → 隱私權與安全性」按「仍要打開」。那裡沒有按鈕的話，先回去雙擊一次 App 再看。熟悉終端機的話，也可以執行 <code>xattr -dr com.apple.quarantine "/Applications/{NAME}.app"</code> 後再雙擊。</li>
 <li><strong>錄不到聲音</strong>：「系統設定 → 隱私權與安全性 → 麥克風」確認有允許 {NAME}。</li>
 <li><strong>沒錄到對方</strong>：輸出裝置要選多重輸出裝置，錄音來源要選「兩者都錄」。</li>
 <li><strong>摘要按鈕是灰的</strong>：沒偵測到 Claude Code。安裝並登入後重新開啟 App。</li>
@@ -372,7 +376,7 @@ def llms() -> str:
 
 ## 頁面
 - [首頁與下載]({BASE}/)：功能、限制、下載連結。
-- [安裝教學]({BASE}/guide/)：第一次右鍵打開、麥克風權限、下載模型、錄線上會議（BlackHole）、詞彙表、輸出檔。
+- [安裝教學]({BASE}/guide/)：第一次開啟（仍要打開）、麥克風權限、下載模型、錄線上會議（BlackHole）、詞彙表、輸出檔。
 - [常見問題]({BASE}/faq/)：費用、隱私、Claude 額度、電腦規格、處理時間、準確度、和看懂 KanDong 共用模型。
 - [原始碼]({REPO})、[最新版]({RELEASES})。
 

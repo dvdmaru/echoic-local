@@ -4,7 +4,7 @@
 
 ## 頁面
 - [首頁與下載](https://echoic.twtools.cc/)：功能、限制、下載連結。
-- [安裝教學](https://echoic.twtools.cc/guide/)：第一次右鍵打開、麥克風權限、下載模型、錄線上會議（BlackHole）、詞彙表、輸出檔。
+- [安裝教學](https://echoic.twtools.cc/guide/)：第一次開啟（仍要打開）、麥克風權限、下載模型、錄線上會議（BlackHole）、詞彙表、輸出檔。
 - [常見問題](https://echoic.twtools.cc/faq/)：費用、隱私、Claude 額度、電腦規格、處理時間、準確度、和看懂 KanDong 共用模型。
 - [原始碼](https://github.com/dvdmaru/echoic-local)、[最新版](https://github.com/dvdmaru/echoic-local/releases/latest)。
 

@@ -22,7 +22,7 @@ export MEETING_LOCAL_PACKAGE_WHISPER_SERVER="$RUNTIME_BIN/whisper-server"
   --distpath "$DIST" \
   "$ROOT/echoic-local.spec"
 
-# ad-hoc 簽署：可驗證 bundle 完整性，但不是 Apple Developer ID 公證；第一次開啟要「右鍵 → 打開」。
+# ad-hoc 簽署：可驗證 bundle 完整性，但不是 Apple Developer ID 公證；第一次開啟要到「系統設定 → 隱私權與安全性」按「仍要打開」（macOS 15 起右鍵 → 打開已無效）。
 codesign --force --deep --sign - "$DIST/${APP_NAME}.app"
 codesign --verify --deep --strict --verbose=2 "$DIST/${APP_NAME}.app"
 

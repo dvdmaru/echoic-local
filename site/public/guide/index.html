@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>安裝教學｜Echoic 本機版</title>
-<meta name="description" content="Echoic 本機版 Mac 版安裝步驟：下載 dmg、第一次右鍵打開、允許麥克風、下載語音辨識模型、錄音轉逐字稿，以及選用的 Claude 摘要。">
+<meta name="description" content="Echoic 本機版 Mac 版安裝步驟：下載 dmg、第一次開啟按「仍要打開」、允許麥克風、下載語音辨識模型、錄音轉逐字稿，以及選用的 Claude 摘要。">
 <link rel="canonical" href="https://echoic.twtools.cc/guide/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Echoic 本機版">
 <meta property="og:title" content="安裝教學｜Echoic 本機版">
-<meta property="og:description" content="Echoic 本機版 Mac 版安裝步驟：下載 dmg、第一次右鍵打開、允許麥克風、下載語音辨識模型、錄音轉逐字稿，以及選用的 Claude 摘要。">
+<meta property="og:description" content="Echoic 本機版 Mac 版安裝步驟：下載 dmg、第一次開啟按「仍要打開」、允許麥克風、下載語音辨識模型、錄音轉逐字稿，以及選用的 Claude 摘要。">
 <meta property="og:url" content="https://echoic.twtools.cc/guide/">
 <meta property="og:image" content="https://echoic.twtools.cc/img/og.png">
 <meta property="og:image:width" content="1200">
@@ -22,9 +22,15 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
 <link rel="stylesheet" href="/site.css">
-
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-80DLMF08HF"></script>
+<script>
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
+gtag('js',new Date());gtag('config','G-80DLMF08HF');
+document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[data-dl]');
+if(a)gtag('event','echoic_local_download',{platform:a.getAttribute('data-dl')});});
+</script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Echoic 本機版", "alternateName": "Echoic Local", "description": "Echoic 本機版是免費開源的會議逐字稿工具：在自己的 Mac 上把會議錄音轉成台灣正體逐字稿，分好誰在說話、每段有時間戳，錄音不上傳。想要摘要，再用你自己登入的 Claude 產生。目前支援 Apple Silicon Mac。", "applicationCategory": "BusinessApplication", "operatingSystem": "macOS 13+ (Apple Silicon)", "softwareVersion": "0.3.0", "inLanguage": "zh-TW", "isAccessibleForFree": true, "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "TWD"}, "url": "https://echoic.twtools.cc/", "downloadUrl": "https://github.com/dvdmaru/echoic-local/releases/latest", "codeRepository": "https://github.com/dvdmaru/echoic-local"}</script>
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "HowTo", "name": "安裝並使用 Echoic 本機版", "step": [{"@type": "HowToStep", "name": "下載", "position": 1}, {"@type": "HowToStep", "name": "第一次開啟：右鍵 →「打開」", "position": 2}, {"@type": "HowToStep", "name": "允許麥克風", "position": 3}, {"@type": "HowToStep", "name": "下載語音辨識模型", "position": 4}, {"@type": "HowToStep", "name": "錄音、轉逐字稿", "position": 5}, {"@type": "HowToStep", "name": "（選用）產生摘要", "position": 6}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "HowTo", "name": "安裝並使用 Echoic 本機版", "step": [{"@type": "HowToStep", "name": "下載", "position": 1}, {"@type": "HowToStep", "name": "第一次開啟：到「隱私權與安全性」按「仍要打開」", "position": 2}, {"@type": "HowToStep", "name": "允許麥克風", "position": 3}, {"@type": "HowToStep", "name": "下載語音辨識模型", "position": 4}, {"@type": "HowToStep", "name": "錄音、轉逐字稿", "position": 5}, {"@type": "HowToStep", "name": "（選用）產生摘要", "position": 6}]}</script>
 </head>
 <body>
 <header class="top"><div class="wrap bar">
@@ -34,26 +40,29 @@
 <main class="wrap doc">
 <h1>安裝教學</h1>
 <p class="lead">需要 Apple Silicon（M1 以後）的 Mac、macOS 13 以上，以及約 2 GB 的空間（App＋語音辨識模型）。</p>
-<ol class="guide"><li><h2>下載</h2><p>到 <a href="https://github.com/dvdmaru/echoic-local/releases/latest/download/EchoicLocal-mac-arm64.dmg" data-dl="mac">GitHub Releases 下載 EchoicLocal-mac-arm64.dmg</a>，打開後把「Echoic 本機版」拖到「應用程式」。</p></li><li><h2>第一次開啟：右鍵 →「打開」</h2><p>這個 App 沒有付費的 Apple 公證，直接雙擊時 macOS 會擋下來。到「應用程式」資料夾，對它按<strong>右鍵 →「打開」</strong>，跳出的視窗再按一次「打開」。被擋住也沒關係：到「系統設定 → 隱私權與安全性」，在最下面按「仍要打開」。只需要做一次。</p><svg class="illus" viewBox="0 0 640 260" role="img" aria-label="在應用程式資料夾對 Echoic 本機版 按右鍵，選「打開」">
+<ol class="guide"><li><h2>下載</h2><p>到 <a href="https://github.com/dvdmaru/echoic-local/releases/latest/download/EchoicLocal-mac-arm64.dmg" data-dl="mac">GitHub Releases 下載 EchoicLocal-mac-arm64.dmg</a>，打開後把「Echoic 本機版」拖到「應用程式」。</p></li><li><h2>第一次開啟：到「隱私權與安全性」按「仍要打開」</h2><p>這個 App 沒有付費的 Apple 公證，第一次雙擊時 macOS 會跳出「無法打開」的警告，只有「丟到垃圾桶」和「完成」兩個按鈕：按<strong>「完成」</strong>。接著打開「系統設定 → 隱私權與安全性」，往下捲到「安全性」，會看到 App 已被阻擋，按<strong>「仍要打開」</strong>（英文介面是 Open Anyway），輸入密碼後再按一次「打開」。只需要做一次。macOS 14 以前也可以對 App 按右鍵 →「打開」；macOS 15 起 Apple 拿掉了這條捷徑。</p><svg class="illus" viewBox="0 0 640 260" role="img" aria-label="系統設定的隱私權與安全性頁面，在安全性區塊按「仍要打開」">
 <rect x="0" y="0" width="640" height="260" rx="16" fill="#fff"/>
-<rect x="24" y="24" width="250" height="212" rx="12" fill="#f3efe6"/>
-<text x="44" y="56" font-size="16" fill="#555">應用程式</text>
-<rect x="60" y="80" width="72" height="72" rx="16" fill="#0f5c57"/>
-<g fill="#ffd166"><rect x="76" y="108" width="7" height="16" rx="3"/><rect x="88" y="98" width="7" height="36" rx="3"/><rect x="100" y="90" width="7" height="52" rx="3"/><rect x="112" y="102" width="7" height="28" rx="3"/></g>
-<text x="96" y="176" font-size="14" text-anchor="middle" fill="#1d2321">Echoic 本機版</text>
-<path d="M140 120 L190 120" stroke="#ff7a59" stroke-width="3" marker-end="url(#a)"/>
-<defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#ff7a59"/></marker></defs>
-<rect x="300" y="40" width="160" height="150" rx="10" fill="#fff" stroke="#ccc"/>
-<rect x="308" y="52" width="144" height="30" rx="6" fill="#ff7a59"/>
-<text x="320" y="73" font-size="15" fill="#fff" font-weight="700">打開</text>
-<text x="320" y="108" font-size="15" fill="#777">顯示套件內容</text>
-<text x="320" y="138" font-size="15" fill="#777">丟到垃圾桶</text>
-<text x="320" y="168" font-size="15" fill="#777">取得資訊</text>
-<text x="480" y="80" font-size="15" fill="#1d2321">① 右鍵（或按住</text>
-<text x="480" y="102" font-size="15" fill="#1d2321">control 再點）</text>
-<text x="480" y="134" font-size="15" fill="#1d2321">② 選「打開」</text>
-<text x="480" y="166" font-size="15" fill="#1d2321">③ 再按一次</text>
-<text x="480" y="188" font-size="15" fill="#1d2321">「打開」</text>
+<rect x="24" y="24" width="392" height="212" rx="12" fill="#f3efe6"/>
+<circle cx="44" cy="42" r="5" fill="#ff5f57"/><circle cx="60" cy="42" r="5" fill="#febc2e"/><circle cx="76" cy="42" r="5" fill="#28c840"/>
+<text x="44" y="78" font-size="14" fill="#777">一般</text>
+<text x="44" y="104" font-size="14" fill="#777">外觀</text>
+<rect x="34" y="116" width="128" height="28" rx="6" fill="#0f5c57"/>
+<text x="44" y="135" font-size="14" fill="#fff" font-weight="700">隱私權與安全性</text>
+<text x="44" y="166" font-size="14" fill="#777">桌面與 Dock</text>
+<text x="44" y="192" font-size="14" fill="#777">顯示器</text>
+<rect x="176" y="60" width="226" height="164" rx="10" fill="#fff"/>
+<text x="192" y="88" font-size="15" fill="#1d2321" font-weight="700">安全性</text>
+<text x="192" y="116" font-size="13" fill="#555">已阻擋「Echoic 本機版」，</text>
+<text x="192" y="136" font-size="13" fill="#555">因為無法確認它沒有</text>
+<text x="192" y="156" font-size="13" fill="#555">惡意軟體。</text>
+<rect x="276" y="174" width="112" height="32" rx="8" fill="#ff7a59"/>
+<text x="332" y="195" font-size="15" fill="#fff" font-weight="700" text-anchor="middle">仍要打開</text>
+<text x="436" y="70" font-size="15" fill="#1d2321">① 先雙擊一次，</text>
+<text x="436" y="92" font-size="15" fill="#1d2321">警告視窗按「完成」</text>
+<text x="436" y="128" font-size="15" fill="#1d2321">② 系統設定 →</text>
+<text x="436" y="150" font-size="15" fill="#1d2321">隱私權與安全性</text>
+<text x="436" y="186" font-size="15" fill="#1d2321">③ 往下捲，按</text>
+<text x="436" y="208" font-size="15" fill="#1d2321">「仍要打開」</text>
 </svg></li><li><h2>允許麥克風</h2><p>第一次錄音時 macOS 會問能不能用麥克風，按「允許」。錄音只存在你的電腦。</p></li><li><h2>下載語音辨識模型</h2><p>按「下載語音辨識模型」，約 1.6 GB，從 Hugging Face 官方下載並比對 SHA256。裝過<a href="https://kandong.twtools.cc/">看懂 KanDong</a>的話，通常已經有了，按鈕會直接顯示就緒。</p></li><li><h2>錄音、轉逐字稿</h2><p>選錄音來源（實體會議選「只錄麥克風」，線上會議選「兩者都錄」），按「開始錄音」，結束按「停止」，再按「轉逐字稿」。與會者有填，說話人分離會準很多。</p></li><li><h2>（選用）產生摘要</h2><p>先安裝並登入 <a href="https://docs.claude.com/en/docs/claude-code">Claude Code</a>。勾「轉完逐字稿後自動用 Claude 產生摘要」，或對單場按「產生這場摘要」。會用到你 Claude 方案的額度，所以預設不自動做。</p></li></ol>
 
 <h2 id="online">錄線上會議（對方的聲音）</h2>
@@ -80,7 +89,7 @@
 
 <h2 id="trouble">卡住了？</h2>
 <ul>
-<li><strong>打不開、說「無法確認開發者」</strong>：照第 2 步用右鍵打開，或到「隱私權與安全性」按「仍要打開」。</li>
+<li><strong>打不開、說「無法打開」或「無法確認開發者」</strong>：照第 2 步到「系統設定 → 隱私權與安全性」按「仍要打開」。那裡沒有按鈕的話，先回去雙擊一次 App 再看。熟悉終端機的話，也可以執行 <code>xattr -dr com.apple.quarantine "/Applications/Echoic 本機版.app"</code> 後再雙擊。</li>
 <li><strong>錄不到聲音</strong>：「系統設定 → 隱私權與安全性 → 麥克風」確認有允許 Echoic 本機版。</li>
 <li><strong>沒錄到對方</strong>：輸出裝置要選多重輸出裝置，錄音來源要選「兩者都錄」。</li>
 <li><strong>摘要按鈕是灰的</strong>：沒偵測到 Claude Code。安裝並登入後重新開啟 App。</li>

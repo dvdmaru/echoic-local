@@ -29,6 +29,7 @@ _LEGACY_MODEL_DIRS = [
     HOME / "Library/Application Support/會議大師/models",
     HOME / "Library/Application Support/Memo/models",
     HOME / ".cache/kandong/models",
+    HOME / ".cache/floattranslate/whisper",  # 看懂／FloatTranslate 舊版的語音辨識快取（放 q5_0）
 ]
 WHISPER_SEARCH_DIRS = [SHARED_MODELS_DIR, *_LEGACY_MODEL_DIRS]
 _MEMO_WHISPER_BIN = Path("/Applications/Memo.app/Contents/Resources/addon/whisper/bin/1.8.6/whisper-server")
