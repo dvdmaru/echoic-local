@@ -26,6 +26,22 @@ export MEETING_LOCAL_PACKAGE_WHISPER_SERVER="$RUNTIME_BIN/whisper-server"
 codesign --force --deep --sign - "$DIST/${APP_NAME}.app"
 codesign --verify --deep --strict --verbose=2 "$DIST/${APP_NAME}.app"
 
+# 冒煙測試：模擬 Finder 啟動（沒有 LANG／LC_*）。視窗起得來＝8 秒內不會自己結束。
+# 2026-11-03 由來：0.3.0 只從終端機（有 LANG）測過，Finder 一開就因 Tcl 讀壞中文路徑而結束。
+SMOKE_LOG="$ROOT/build/smoke-finder-env.log"
+env -i HOME="$HOME" PATH=/usr/bin:/bin TMPDIR="${TMPDIR:-/tmp}" \
+  "$DIST/${APP_NAME}.app/Contents/MacOS/${APP_NAME}" >"$SMOKE_LOG" 2>&1 </dev/null &
+SMOKE_PID=$!
+sleep 8
+if kill -0 "$SMOKE_PID" 2>/dev/null; then
+  kill "$SMOKE_PID"; wait "$SMOKE_PID" 2>/dev/null || true
+  echo "✅ 冒煙測試：無 LANG 啟動 8 秒仍在跑"
+else
+  echo "❌ 冒煙測試：無 LANG 啟動後自己結束，看 $SMOKE_LOG" >&2
+  tail -20 "$SMOKE_LOG" >&2
+  exit 1
+fi
+
 DMG="$DIST/EchoicLocal-mac-arm64.dmg"
 rm -f "$DMG"
 STAGE="$ROOT/build/dmg-stage"

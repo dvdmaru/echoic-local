@@ -37,7 +37,7 @@ a = Analysis(
     hiddenimports=["numpy", "soundfile", "sherpa_onnx", "opencc"],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=["scripts/pyi_rth_utf8_locale.py"],  # Finder 啟動沒有 LANG，Tcl 會讀壞中文路徑（見該檔）
     excludes=["pytest"],
     noarchive=False,
 )
@@ -68,6 +68,8 @@ app = BUNDLE(
         "CFBundleShortVersionString": VERSION,
         "CFBundleVersion": VERSION,
         "LSMinimumSystemVersion": "13.0",
+        # Finder 啟動不帶 LANG；沒有這行，內附 Tcl 會讀壞「本機版」中文路徑而開不起來（2026-11-03）
+        "LSEnvironment": {"LC_CTYPE": "UTF-8"},
         "NSMicrophoneUsageDescription": f"{APP_NAME}需要麥克風權限，才能在這台 Mac 本機錄製會議。錄音只存在這台電腦。",
     },
 )
