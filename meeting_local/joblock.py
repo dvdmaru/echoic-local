@@ -53,6 +53,18 @@ def acquire(job: Path, step: str) -> None:
     _held.add(lock)
 
 
+def moved(old_job: Path, new_job: Path) -> None:
+    """資料夾改名後呼叫：鎖檔跟著資料夾搬走了，放鎖要用新路徑。
+
+    2026-11-05 實跑：summarize 後改名，release_all() 拿舊路徑讀不到、被 except 吞掉，
+    改名後的資料夾裡留下一個看起來「還在跑」的鎖檔。
+    """
+    old_lock = old_job / LOCK_NAME
+    if old_lock in _held:
+        _held.discard(old_lock)
+        _held.add(new_job / LOCK_NAME)
+
+
 def release_all() -> None:
     for lock in list(_held):
         try:

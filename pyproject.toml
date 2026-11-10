@@ -1,6 +1,6 @@
 [project]
 name = "meeting-local"
-version = "0.3.1"
+version = "0.4.0"
 description = "Echoic 本機版：會議錄音在自己電腦轉逐字稿（whisper.cpp＋sherpa-onnx 說話人分離＋台灣正體），摘要選用自己的 Claude"
 license = {text = "MIT"}
 requires-python = ">=3.11"

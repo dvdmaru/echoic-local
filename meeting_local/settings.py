@@ -1,6 +1,9 @@
-"""使用者設定（小 JSON 檔）。目前只有一個：轉完逐字稿後要不要自動用 Claude 產生摘要。
+"""使用者設定（小 JSON 檔）。
 
-摘要會用到使用者自己 Claude 方案的用量，所以預設關，讓他自己選。
+- auto_summary：轉完逐字稿後要不要自動用 Claude 產生摘要。會用到使用者自己 Claude 方案的用量，預設關。
+- stt_engine：語音辨識用本機 whisper（local，預設）或線上 API（api）。線上會上傳錄音，使用者自己選。
+- stt_api_base_url／stt_api_model：線上 API 的網址與模型（OpenAI 相容）。key 不在這裡，見 stt_api.save_key。
+- local_speed：本機 whisper 要跑多快（見 LOCAL_SPEEDS）。
 """
 from __future__ import annotations
 
@@ -9,8 +12,18 @@ import os
 from pathlib import Path
 
 from . import config
+from .stt_api import DEFAULT_BASE_URL, DEFAULT_MODEL
 
-DEFAULTS = {"auto_summary": False}
+ENGINES = ("local", "api")
+LOCAL_SPEEDS = ("fast", "background")
+
+DEFAULTS = {
+    "auto_summary": False,
+    "stt_engine": "local",
+    "stt_api_base_url": DEFAULT_BASE_URL,
+    "stt_api_model": DEFAULT_MODEL,
+    "local_speed": "fast",
+}
 
 # 給 UI 與 README 共用的說明。數字來源：2026-09～10 實際 26 場會議，一小時逐字稿中位數約 2 萬字，
 # 專名表與摘要各送一次（約 2 萬字＋2.5 萬字），回覆合計約 1 萬字。
@@ -22,13 +35,25 @@ SUMMARY_COST_NOTE = (
 )
 
 
+def _valid(key: str, value) -> bool:
+    if key == "auto_summary":
+        return isinstance(value, bool)
+    if key == "stt_engine":
+        return value in ENGINES
+    if key == "local_speed":
+        return value in LOCAL_SPEEDS
+    if key in ("stt_api_base_url", "stt_api_model"):
+        return isinstance(value, str) and bool(value.strip())
+    return False
+
+
 def load(path: Path | None = None) -> dict:
     path = path or config.SETTINGS_PATH
     data = dict(DEFAULTS)
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
         if isinstance(raw, dict):
-            data.update({k: raw[k] for k in DEFAULTS if k in raw})
+            data.update({k: raw[k] for k in DEFAULTS if k in raw and _valid(k, raw[k])})
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         pass
     return data
@@ -37,7 +62,7 @@ def load(path: Path | None = None) -> dict:
 def save(values: dict, path: Path | None = None) -> None:
     path = path or config.SETTINGS_PATH
     data = load(path)
-    data.update({k: values[k] for k in DEFAULTS if k in values})
+    data.update({k: values[k] for k in DEFAULTS if k in values and _valid(k, values[k])})
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
     tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

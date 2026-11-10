@@ -37,6 +37,13 @@ def log(msg: str) -> None:
     print(f"[{time.strftime('%H:%M:%S')}] {msg}", flush=True)
 
 
+SPEED_LABELS = {"fast": "全速", "background": "背景：讓出資源，多花約 4 成時間"}
+SPEED_HINTS = {
+    "fast": "全速：一小時的會議 whisper 約 4～8 分鐘，之後說話人分離再約 7 分鐘",
+    "background": "背景速度：降低優先權、少用核心，比全速多花約 4 成時間",
+}
+
+
 # ---------------------------------------------------------------- helpers
 def _job_dir_for(src: Path | None, name: str | None, out_root: Path) -> Path:
     if name:
@@ -165,15 +172,56 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     print(f"{'✅' if seg.exists() and emb.exists() else '⚠️'} 說話人分離模型：{config.MODELS_DIR}（{'已就緒' if seg.exists() and emb.exists() else '第一次 transcribe 會自動下載約 46 MB'}）")
     tw = config.TW_GATE
     print(f"{'✅' if tw.exists() else '⚠️'} 台灣用語 gate：{tw if tw.exists() else '不存在，會略過'}")
+    s = settings.load()
+    if s["stt_engine"] == "api":
+        from . import stt_api
+
+        has_key = stt_api.load_key() is not None
+        print(f"{'✅' if has_key else '⚠️'} 語音辨識：線上 API（{stt_api.host_of(s['stt_api_base_url'])}，{s['stt_api_model']}，"
+              f"key {'已設定' if has_key else '未設定 → meeting-local config --set-api-key'}）｜錄音會上傳到這個服務")
+    else:
+        print(f"ℹ️ 語音辨識：本機 whisper（{SPEED_LABELS[s['local_speed']]}）")
     print(f"ℹ️ 輸出目錄：{config.OUT_ROOT}｜機器：{platform.machine()}｜meeting-local {__version__}")
     return 0 if ok_all else 1
 
 
 def cmd_config(args: argparse.Namespace) -> int:
+    from . import stt_api
+
+    changes: dict = {}
     if args.auto_summary:
-        settings.save({"auto_summary": args.auto_summary == "on"})
-    print(f"自動摘要：{'開' if settings.auto_summary() else '關'}（設定檔 {config.SETTINGS_PATH}）")
+        changes["auto_summary"] = args.auto_summary == "on"
+    if getattr(args, "engine", None):
+        changes["stt_engine"] = args.engine
+    if getattr(args, "speed", None):
+        changes["local_speed"] = args.speed
+    if getattr(args, "api_url", None):
+        changes["stt_api_base_url"] = args.api_url.strip().rstrip("/")
+    if getattr(args, "api_model", None):
+        changes["stt_api_model"] = args.api_model.strip()
+    if changes:
+        settings.save(changes)
+    if getattr(args, "set_api_key", False):
+        import getpass
+
+        # 不收命令列參數：key 會留在 shell 歷史與 ps 裡。終端機用不回顯的輸入，管線就讀 stdin 第一行。
+        key = getpass.getpass("貼上 API key（不會顯示）：") if sys.stdin.isatty() else sys.stdin.readline()
+        path = stt_api.save_key(key)
+        print(f"API key 已存到 {path}（只有你的帳號讀得到）" if key.strip() else f"API key 已刪除（{path}）")
+    if getattr(args, "clear_api_key", False):
+        stt_api.save_key("")
+        print("API key 已刪除")
+
+    s = settings.load()
+    print(f"自動摘要：{'開' if s['auto_summary'] else '關'}（設定檔 {config.SETTINGS_PATH}）")
     print(settings.SUMMARY_COST_NOTE)
+    if s["stt_engine"] == "api":
+        has_key = stt_api.load_key() is not None
+        print(f"語音辨識：線上 API（{stt_api.host_of(s['stt_api_base_url'])}，模型 {s['stt_api_model']}，"
+              f"key {'已設定' if has_key else '未設定'}）")
+        print("⚠️ " + stt_api.warning(s["stt_api_base_url"]))
+    else:
+        print(f"語音辨識：本機 whisper（{SPEED_LABELS[s['local_speed']]}）")
     return 0
 
 
@@ -248,25 +296,17 @@ def cmd_transcribe(args: argparse.Namespace) -> Path:
     update_run_json(run_json, job=job.name, source=str(src), audio=info, audio_levels=levels,
                     normalized=(model_wav != wav), attendees=attendees or None, tool_version=__version__)
 
-    # 1. whisper（stderr 導檔，程序保證收掉）
+    # 1. 語音辨識：本機 whisper（預設）或使用者自選的線上 API
+    engine = stt_engine(args)
     t0 = time.time()
-    use_vad = bool(getattr(args, "vad", False)) and not getattr(args, "no_vad", False)
-    server = WhisperServer(log_path=job / "whisper-server.log", vad=use_vad)
-    log(f"啟動 whisper-server（port {server.port}，VAD={'on' if server.vad else 'off'}，max-context={server.max_context}），"
-        f"log → {server.log_path.name}")
-    with server:
-        log(f"whisper-server pid {server.pid} 就緒，開始推論（關 VAD 約 12 倍速：43 分鐘音檔要 3～4 分鐘，請等）")
-        raw_srt = server.transcribe(model_wav, prompt=prompt)
-    assert server.is_gone(), "whisper-server 沒有結束"
+    if engine == "api":
+        segments, stt_info = _stt_api(job, model_wav, prompt)
+    else:
+        segments, stt_info = _stt_local(job, model_wav, prompt, args)
     whisper_sec = time.time() - t0
-    (job / "transcript.raw.bytes.srt").write_bytes(server.raw_bytes)  # 解碼前原樣，出事不必重跑 whisper
-    (job / "transcript.raw.srt").write_text(raw_srt, encoding="utf-8")
-    if server.repaired_chars or server.dropped_bytes:
-        log(f"⚠️ whisper 輸出有切壞的中文字：接回 {server.repaired_chars} 字，丟掉 {server.dropped_bytes} 處接不回的殘缺字元")
-    segments = parse_srt(raw_srt)
-    log(f"whisper 完成：{len(segments)} 段，{whisper_sec:.0f} 秒；whisper-server pid {server.pid} 已結束")
     if not segments:
-        raise RuntimeError(f"whisper 沒有產出任何段落，看 {job / 'whisper-server.log'}")
+        where = job / ("stt-api" if engine == "api" else "whisper-server.log")
+        raise RuntimeError(f"語音辨識沒有產出任何段落，看 {where}")
 
     # 2. 幻覺去重 → 3. 繁體
     segments, halluc = collapse_hallucinations(segments, min_run=args.min_run)
@@ -281,11 +321,7 @@ def cmd_transcribe(args: argparse.Namespace) -> Path:
 
     update_run_json(
         run_json,
-        models_touched={
-            "stt": {"engine": f"whisper.cpp whisper-server ({server.binary})", "model": str(server.model),
-                    "vad": server.vad, "max_context": server.max_context, "prompt": prompt,
-                    "input": model_wav.name, "local": True},
-        },
+        models_touched={"stt": {**stt_info, "prompt": prompt, "input": model_wav.name}},
         whisper_seconds=round(whisper_sec),
         segments=len(segments),
         hallucination_runs=halluc,
@@ -298,24 +334,82 @@ def cmd_transcribe(args: argparse.Namespace) -> Path:
     return job
 
 
+def stt_engine(args: argparse.Namespace) -> str:
+    """--engine 優先；沒給就照設定檔（預設 local）。"""
+    return getattr(args, "engine", None) or settings.load()["stt_engine"]
+
+
+def local_speed(args: argparse.Namespace) -> str:
+    return getattr(args, "speed", None) or settings.load()["local_speed"]
+
+
+def _stt_local(job: Path, model_wav: Path, prompt: str, args: argparse.Namespace):
+    """本機 whisper-server（stderr 導檔，程序保證收掉）。"""
+    use_vad = bool(getattr(args, "vad", False)) and not getattr(args, "no_vad", False)
+    speed = local_speed(args)
+    server = WhisperServer(log_path=job / "whisper-server.log", vad=use_vad, background=(speed == "background"))
+    log(f"啟動 whisper-server（port {server.port}，VAD={'on' if server.vad else 'off'}，max-context={server.max_context}，"
+        f"{SPEED_LABELS[speed]}），log → {server.log_path.name}")
+    with server:
+        log(f"whisper-server pid {server.pid} 就緒，開始推論（{SPEED_HINTS[speed]}）")
+        raw_srt = server.transcribe(model_wav, prompt=prompt)
+    assert server.is_gone(), "whisper-server 沒有結束"
+    (job / "transcript.raw.bytes.srt").write_bytes(server.raw_bytes)  # 解碼前原樣，出事不必重跑 whisper
+    (job / "transcript.raw.srt").write_text(raw_srt, encoding="utf-8")
+    if server.repaired_chars or server.dropped_bytes:
+        log(f"⚠️ whisper 輸出有切壞的中文字：接回 {server.repaired_chars} 字，丟掉 {server.dropped_bytes} 處接不回的殘缺字元")
+    segments = parse_srt(raw_srt)
+    log(f"whisper 完成：{len(segments)} 段；whisper-server pid {server.pid} 已結束")
+    info = {"engine": f"whisper.cpp whisper-server ({server.binary})", "model": str(server.model),
+            "vad": server.vad, "max_context": server.max_context, "speed": speed, "gpu": server.gpu,
+            "threads": server.threads, "local": True}
+    return segments, info
+
+
+def _stt_api(job: Path, model_wav: Path, prompt: str):
+    """使用者自選的線上 API：上傳錄音，回來的段落跟本機路線走同一條後處理。"""
+    from . import stt_api
+
+    s = settings.load()
+    base, model = s["stt_api_base_url"], s["stt_api_model"]
+    key = stt_api.load_key()
+    if not key:
+        raise RuntimeError("選了線上語音辨識，但還沒填 API key：在視窗的「線上 API 設定…」填，"
+                           "或執行 meeting-local config --set-api-key")
+    log("⚠️ " + stt_api.warning(base))
+    log(f"線上語音辨識：{stt_api.host_of(base)}，模型 {model}")
+    segments, info = stt_api.transcribe(model_wav, job, base, model, key, config.WHISPER_LANGUAGE, prompt,
+                                        log=log, chunk_seconds=config.STT_CHUNK_SECONDS)
+    from .srt import render_srt
+
+    (job / "transcript.raw.srt").write_text(render_srt(segments), encoding="utf-8")
+    log(f"線上語音辨識完成：{len(segments)} 段，{info['chunks']} 次上傳，{info['seconds']} 秒")
+    return segments, info
+
+
 def _diarize_and_write(job: Path, wav: Path, segments, halluc: list[dict], args: argparse.Namespace,
                        model_wav: Path | None = None) -> None:
     diar: list[dict] = []
     talk: dict[str, float] = {}
     diar_models: dict = {}
     if not getattr(args, "no_diarize", False):
-        from .diarize import assign_speakers, diarize, minor_speakers, talk_time
+        from .diarize import assign_speakers, diarize_isolated, minor_speakers, talk_time
 
         t1 = time.time()
         n_spk = _effective_speakers(args)
         src_wav = model_wav or wav
-        log(f"說話人分離（sherpa-onnx，本機；人數={'自動' if n_spk < 0 else n_spk}，門檻={args.threshold}，音檔={src_wav.name}）…")
-        diar = diarize(src_wav, num_speakers=n_spk, threshold=args.threshold)
+        background = local_speed(args) == "background"
+        threads = 1 if background else config.DIARIZE_THREADS
+        log(f"說話人分離（sherpa-onnx，本機；人數={'自動' if n_spk < 0 else n_spk}，門檻={args.threshold}，音檔={src_wav.name}，"
+            f"{threads} 執行緒{'，背景優先權' if background else ''}）…")
+        diar = diarize_isolated(src_wav, num_speakers=n_spk, threshold=args.threshold, num_threads=threads,
+                                nice=config.BACKGROUND_NICE if background else 0, log=log)
         minor = minor_speakers(diar) if n_spk < 0 else set()
         assign_speakers(segments, diar, ignore=minor)
         talk = talk_time(diar, ignore=minor)
         diar_models = {"segmentation": config.SEG_MODEL_DIRNAME, "embedding": config.EMB_MODEL_FILENAME,
                        "num_speakers_arg": n_spk, "threshold": args.threshold, "input": src_wav.name,
+                       "threads": threads, "background": background,
                        "minor_speakers_absorbed": sorted(minor)}
         log(f"說話人分離完成：{len(talk)} 人（另 {len(minor)} 個零碎群併入前後說話人），{time.time()-t1:.0f} 秒；發言秒數 {talk}")
         write_speakers_json(job / "speakers.json", diar, talk, diar_models)
@@ -441,6 +535,7 @@ def cmd_summarize(args: argparse.Namespace) -> Path:
             log(f"⚠️ 想改名成 {new_name} 但已存在，資料夾維持 {job.name}")
         else:
             job.rename(target)
+            joblock.moved(job, target)
             job = target
             log(f"📁 資料夾改名 → {job}")
     _refresh_index(job)
@@ -509,6 +604,10 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--no-normalize", action="store_true", help="不做響度正規化，直接用原檔辨識")
         sp.add_argument("--min-run", type=int, default=3, help="連續幾段相同視為幻覺迴圈（預設 3）")
         sp.add_argument("--prompt", default=config.DEFAULT_PROMPT, help="whisper 初始提示（詞彙表的正確寫法會自動接在後面）")
+        sp.add_argument("--engine", choices=settings.ENGINES, default=None,
+                        help="這次的語音辨識：local 本機 whisper／api 線上 API（會上傳錄音）；沒給就照設定")
+        sp.add_argument("--speed", choices=settings.LOCAL_SPEEDS, default=None,
+                        help="本機 whisper 速度：fast 全速／background 不卡電腦但較慢；沒給就照設定")
 
     def common_claude(sp: argparse.ArgumentParser) -> None:
         sp.add_argument("--model", default=config.CLAUDE_MODEL, help="claude CLI 模型（預設用 CLI 預設）")
@@ -564,8 +663,14 @@ def build_parser() -> argparse.ArgumentParser:
     g.add_argument("--no-summary", dest="summary", action="store_false", help="這次只做逐字稿（蓋過設定）")
     sp.set_defaults(func=cmd_all)
 
-    sp = sub.add_parser("config", help="看或改設定（目前只有自動摘要開關）")
+    sp = sub.add_parser("config", help="看或改設定（自動摘要、語音辨識引擎、線上 API）")
     sp.add_argument("--auto-summary", choices=("on", "off"), help="轉完逐字稿後自動用 Claude 產生摘要")
+    sp.add_argument("--engine", choices=settings.ENGINES, help="預設語音辨識：local 本機 whisper／api 線上 API（會上傳錄音）")
+    sp.add_argument("--speed", choices=settings.LOCAL_SPEEDS, help="本機 whisper 預設速度：fast／background")
+    sp.add_argument("--api-url", help="線上 API 網址（OpenAI 相容，例 https://api.openai.com/v1、https://api.groq.com/openai/v1）")
+    sp.add_argument("--api-model", help="線上 API 模型（例 whisper-1、whisper-large-v3）")
+    sp.add_argument("--set-api-key", action="store_true", help="輸入線上 API key（不顯示；存成只有自己讀得到的檔）")
+    sp.add_argument("--clear-api-key", action="store_true", help="刪掉存著的線上 API key")
     sp.set_defaults(func=cmd_config)
     return p
 

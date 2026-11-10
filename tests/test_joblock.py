@@ -65,3 +65,27 @@ def test_main_reports_busy(tmp_path, capsys):
     assert cli.main(["diarize", str(tmp_path)]) == 1
     assert "正在被另一個 meeting-local 處理" in capsys.readouterr().err
     assert (tmp_path / joblock.LOCK_NAME).exists()  # 別人的鎖不動
+
+
+def test_moved_releases_at_new_path(tmp_path):
+    old, new = tmp_path / "2026-11-05-1200", tmp_path / "2026-11-05-1200-標題"
+    old.mkdir()
+    joblock.acquire(old, "summarize")
+    old.rename(new)
+    joblock.moved(old, new)
+    joblock.release_all()
+    assert not (new / joblock.LOCK_NAME).exists()
+
+
+def test_summarize_rename_leaves_no_lock(tmp_path, monkeypatch):
+    # 2026-11-05 實跑：summarize 後資料夾改名，鎖檔跟著被搬走沒放掉
+    from meeting_local import summarize
+    monkeypatch.setattr(summarize, "_claude", lambda *a, **k: "# 測試標題\n\n## 一句話\n測試\n")
+    job = tmp_path / "2026-11-05-1200"
+    job.mkdir()
+    (job / "transcript-by-minute.txt").write_text("[00:00] 測試\n", encoding="utf-8")
+    (job / "entities.md").write_text("（無）\n", encoding="utf-8")
+    assert cli.main(["summarize", str(job)]) == 0
+    renamed = [p for p in tmp_path.iterdir() if p.is_dir()]
+    assert [p.name for p in renamed] == ["2026-11-05-1200-測試標題"]
+    assert not (renamed[0] / joblock.LOCK_NAME).exists()

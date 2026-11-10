@@ -28,6 +28,14 @@ HISTORY = 480       # 畫面上保留 480 個 50 ms 點 = 24 秒
 QUIET_WINDOW = 40   # 「幾乎沒有聲音」看最近 2 秒的最大值，不看單一 50 ms（講話句間空隙會誤報）
 QUIET_DB = -50.0
 
+PRESETS = {
+    "OpenAI": ("https://api.openai.com/v1", "whisper-1"),
+    "Groq": ("https://api.groq.com/openai/v1", "whisper-large-v3"),
+}
+BACKGROUND_LABEL = "本機背景模式：再讓出一點電腦資源（多花約 4 成時間）"
+FAST_NOTE = "本機全速：一小時的會議大約 12～16 分鐘轉完（語音辨識＋說話人分離），轉的時候這個視窗和其他程式照常能用。"
+BACKGROUND_NOTE = "本機背景模式：降低優先權、少用核心，其他程式更不受影響，但比全速多花約 4 成時間。適合開完會丟著讓它跑。"
+
 
 def _rms_db(chunk: bytes) -> tuple[float, float]:
     samples = array.array("h", chunk)
@@ -116,6 +124,25 @@ class RecorderUI:
         if not self.has_claude:
             cb.state(["disabled"])
         ttk.Label(sum_row, text=note, wraplength=720, foreground="#555").pack(anchor="w", padx=(22, 0))
+
+        # 語音辨識：本機（預設，錄音不出電腦）或使用者自選的線上 API（會上傳錄音，選的時候講清楚）
+        stt_row = ttk.Frame(frm)
+        stt_row.pack(fill="x", pady=(0, 6))
+        ttk.Label(stt_row, text="語音辨識：").pack(side="left")
+        prefs = settings.load()
+        self.engine_var = tk.StringVar(value=prefs["stt_engine"])
+        ttk.Radiobutton(stt_row, text="本機 whisper（錄音不出電腦）", value="local", variable=self.engine_var,
+                        command=self._engine_changed).pack(side="left", padx=(0, 10))
+        ttk.Radiobutton(stt_row, text="線上 API（會上傳錄音）", value="api", variable=self.engine_var,
+                        command=self._engine_changed).pack(side="left", padx=(0, 10))
+        ttk.Button(stt_row, text="線上 API 設定…", command=self.api_settings).pack(side="left")
+        self.background_var = tk.BooleanVar(value=prefs["local_speed"] == "background")
+        self.cb_background = ttk.Checkbutton(frm, text=BACKGROUND_LABEL, variable=self.background_var,
+                                             command=self._speed_changed)
+        self.cb_background.pack(anchor="w", padx=(22, 0))
+        self.lbl_engine = ttk.Label(frm, text="", wraplength=720, foreground="#555")
+        self.lbl_engine.pack(anchor="w", padx=(22, 0), pady=(0, 6))
+        self._refresh_engine_note()
 
         row = ttk.Frame(frm)
         row.pack(fill="x")
@@ -366,11 +393,109 @@ class RecorderUI:
         else:
             self.set_status("❌ 沒有錄到東西（檔案不存在或幾乎是空的）。檢查麥克風權限，看資料夾裡的 ffmpeg.log。")
 
+    # ---------------------------------------------------------- 語音辨識引擎
+    def _refresh_engine_note(self) -> None:
+        from . import stt_api
+
+        s = settings.load()
+        if self.engine_var.get() == "api":
+            key = "已設定 key" if stt_api.load_key() else "⚠️ 還沒填 key"
+            self.lbl_engine.configure(
+                text=f"線上：{stt_api.host_of(s['stt_api_base_url'])}，模型 {s['stt_api_model']}，{key}。錄音會上傳到這個服務。"
+                     "說話人分離仍在本機做（背景模式對它照樣有效）。")
+        else:
+            self.lbl_engine.configure(text=BACKGROUND_NOTE if self.background_var.get() else FAST_NOTE)
+        if hasattr(self, "btn_all"):
+            self.btn_all.configure(text=self._all_label())
+
+    def _engine_changed(self) -> None:
+        from . import stt_api
+
+        if self.engine_var.get() == "api":
+            s = settings.load()
+            if not stt_api.load_key():
+                self.engine_var.set("local")
+                self.api_settings()
+                return
+            if not messagebox.askyesno("改用線上語音辨識？", stt_api.warning(s["stt_api_base_url"]) + "\n\n確定之後的會議都用線上辨識嗎？"):
+                self.engine_var.set("local")
+        try:
+            settings.save({"stt_engine": self.engine_var.get()})
+        except OSError as exc:
+            self.say(f"⚠️ 設定沒存起來：{exc}")
+        self._refresh_engine_note()
+
+    def _speed_changed(self) -> None:
+        try:
+            settings.save({"local_speed": "background" if self.background_var.get() else "fast"})
+        except OSError as exc:
+            self.say(f"⚠️ 設定沒存起來：{exc}")
+        self._refresh_engine_note()
+
+    def api_settings(self) -> None:
+        """線上 API 的網址、模型、key。key 欄留空＝沿用已存的。"""
+        from . import stt_api
+
+        s = settings.load()
+        win = tk.Toplevel(self.root)
+        win.title("線上語音辨識設定")
+        win.transient(self.root)
+        body = ttk.Frame(win, padding=12)
+        body.pack(fill="both", expand=True)
+        ttk.Label(body, text="任何 OpenAI 相容的語音辨識服務都可以（OpenAI、Groq、自己架的 whisper 伺服器）。",
+                  wraplength=520).grid(row=0, column=0, columnspan=3, sticky="w", pady=(0, 8))
+        url_var = tk.StringVar(value=s["stt_api_base_url"])
+        model_var = tk.StringVar(value=s["stt_api_model"])
+        key_var = tk.StringVar()
+        has_key = stt_api.load_key() is not None
+        for r, (label, var, extra) in enumerate((("網址", url_var, {}), ("模型", model_var, {}),
+                                                 ("API key", key_var, {"show": "•"})), start=1):
+            ttk.Label(body, text=label).grid(row=r, column=0, sticky="w", padx=(0, 8), pady=2)
+            ttk.Entry(body, textvariable=var, width=46, **extra).grid(row=r, column=1, columnspan=2, sticky="we", pady=2)
+        ttk.Label(body, text="（已存過 key，留空就沿用）" if has_key else "（key 只存在這台電腦，只有你的帳號讀得到）",
+                  foreground="#555").grid(row=4, column=1, columnspan=2, sticky="w")
+        presets = ttk.Frame(body)
+        presets.grid(row=5, column=1, columnspan=2, sticky="w", pady=(6, 0))
+        ttk.Label(presets, text="快速填入：").pack(side="left")
+        for name, (url, model) in PRESETS.items():
+            ttk.Button(presets, text=name, command=lambda u=url, m=model: (url_var.set(u), model_var.set(m))).pack(side="left", padx=(0, 6))
+        ttk.Label(body, text=stt_api.WARNING.format(host="你填的服務"), wraplength=520,
+                  foreground="#a65e00").grid(row=6, column=0, columnspan=3, sticky="w", pady=(10, 6))
+
+        def save() -> None:
+            url = url_var.get().strip().rstrip("/")
+            model = model_var.get().strip()
+            if not url.startswith(("https://", "http://")) or not model:
+                messagebox.showerror("設定不完整", "網址要以 https:// 開頭，模型不能空白。", parent=win)
+                return
+            if not key_var.get().strip() and not has_key:
+                messagebox.showerror("缺 API key", "第一次設定要填 API key。", parent=win)
+                return
+            if not messagebox.askyesno("改用線上語音辨識？", stt_api.warning(url) + "\n\n儲存後，之後的會議都用線上辨識。", parent=win):
+                return
+            try:
+                if key_var.get().strip():
+                    stt_api.save_key(key_var.get())
+                settings.save({"stt_api_base_url": url, "stt_api_model": model, "stt_engine": "api"})
+            except (OSError, ValueError) as exc:
+                messagebox.showerror("沒存起來", str(exc), parent=win)
+                return
+            self.engine_var.set("api")
+            self.say(f"✅ 已改用線上語音辨識（{stt_api.host_of(url)}，{model}）")
+            win.destroy()
+            self._refresh_engine_note()
+
+        btns = ttk.Frame(body)
+        btns.grid(row=7, column=0, columnspan=3, sticky="e")
+        ttk.Button(btns, text="取消", command=win.destroy).pack(side="right")
+        ttk.Button(btns, text="儲存並改用線上", command=save).pack(side="right", padx=(0, 8))
+
     # ---------------------------------------------------------- pipeline
     def _all_label(self) -> str:
+        how = "線上 API" if self.engine_var.get() == "api" else "本機 whisper"
         if self.auto_summary_var.get():
-            return "轉逐字稿＋摘要（會叫 whisper 與 Claude，數分鐘）"
-        return "轉逐字稿（本機 whisper，數分鐘）"
+            return f"轉逐字稿＋摘要（{how}＋Claude，數分鐘）"
+        return f"轉逐字稿（{how}，數分鐘）"
 
     def _toggle_auto_summary(self) -> None:
         try:
@@ -422,7 +547,9 @@ class RecorderUI:
         want = bool(self.auto_summary_var.get())
         self._set_busy(True)
         self.set_status("⏳ 轉逐字稿＋說話人分離" + ("＋專名表＋摘要" if want else "") + "…（下面會印進度；建議先關 Chrome）")
-        self._run_cli(["all", str(self.job), "--summary" if want else "--no-summary", *self._common_argv()])
+        engine = ["--engine", self.engine_var.get(),
+                  "--speed", "background" if self.background_var.get() else "fast"]
+        self._run_cli(["all", str(self.job), "--summary" if want else "--no-summary", *engine, *self._common_argv()])
 
     def run_summary(self) -> None:
         if self.job is None or self.busy or not self._has_transcript():

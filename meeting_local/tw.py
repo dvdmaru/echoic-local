@@ -9,6 +9,21 @@ from . import config
 
 _cc = None
 
+# s2twp 的臺灣用語表（TWPhrasesIT）是為電腦文件寫的，套在會議口語上會改錯詞、甚至改掉意思。
+# 2026-11-05 實跑：一場廣告會議的「腳本」21 處全被改成「指令碼」（繁體輸入也照轉）。
+# 這幾個詞轉換時保持原樣（統一成正體寫法），其他大陸用語照常轉。
+# 改成只轉字形的 s2tw 不行：視頻、軟件、信息、默認、服務器會原樣漏出來。
+# 後面接特定字的複合詞仍交給 OpenCC（程序員→程式設計師、文件夾→資料夾、數據庫→資料庫）。
+_KEEP = [
+    (re.compile(r"[脚腳]本"), "腳本"),            # 不是「指令碼」
+    (re.compile(r"文件(?![夹夾])"), "文件"),        # 不是「檔案」
+    (re.compile(r"程序(?![员員])"), "程序"),        # 法律程序、申請程序不是「程式」
+    (re.compile(r"[点點][击擊]率"), "點擊率"),      # 廣告業界用語，不是「點選率」
+    (re.compile(r"[数數][据據](?![库庫])"), "數據"),  # 不是「資料」
+    (re.compile(r"[优優]化"), "優化"),              # 不是「最佳化」
+]
+_PH = 0xE000  # Unicode 私用區字元當佔位符，OpenCC 不會動它
+
 
 def to_tw(text: str) -> str:
     global _cc
@@ -16,7 +31,12 @@ def to_tw(text: str) -> str:
         from opencc import OpenCC  # opencc-python-reimplemented
 
         _cc = OpenCC("s2twp")
-    return _cc.convert(text)
+    for i, (pat, _) in enumerate(_KEEP):
+        text = pat.sub(chr(_PH + i), text)
+    text = _cc.convert(text)
+    for i, (_, word) in enumerate(_KEEP):
+        text = text.replace(chr(_PH + i), word)
+    return text
 
 
 _CJK = r"[㐀-鿿＀-￯]"

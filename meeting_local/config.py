@@ -64,7 +64,13 @@ WHISPER_MODEL = _env_path(
 )
 VAD_MODEL = _env_path("MEETING_LOCAL_VAD_MODEL", _default_vad_model())
 WHISPER_PORT = int(os.environ.get("MEETING_LOCAL_WHISPER_PORT", "9589"))
-WHISPER_THREADS = int(os.environ.get("MEETING_LOCAL_WHISPER_THREADS", "8"))
+# 2026-11-10 實測（M4，4 效能核＋6 節能核；whisper 主要跑在 GPU）：8 → 4 執行緒推論時間不變（25–30 秒／6 分鐘音檔），
+# 前景 CPU 小工作延遲回到閒置水準。taskpolicy -b（背景 QoS）反而讓前景更慢（中位 7.6 → 26–29 ms），不用。
+WHISPER_THREADS = int(os.environ.get("MEETING_LOCAL_WHISPER_THREADS", "4"))
+# 「背景」速度：whisper 少用執行緒、說話人分離單執行緒，兩支子程序都 nice 降優先權（只降子程序，不動視窗）。
+WHISPER_THREADS_BACKGROUND = int(os.environ.get("MEETING_LOCAL_WHISPER_THREADS_BACKGROUND", "2"))
+DIARIZE_THREADS = int(os.environ.get("MEETING_LOCAL_DIARIZE_THREADS", "2"))
+BACKGROUND_NICE = int(os.environ.get("MEETING_LOCAL_BACKGROUND_NICE", "10"))
 WHISPER_LANGUAGE = os.environ.get("MEETING_LOCAL_LANGUAGE", "zh")
 # 初始提示：把 whisper 往「台灣、繁體」推；同音專名仍要靠事後的專名候選表。
 DEFAULT_PROMPT = os.environ.get("MEETING_LOCAL_PROMPT", "以下是台灣的會議錄音，請以繁體中文逐字記錄。")
@@ -100,6 +106,9 @@ FFPROBE = os.environ.get("MEETING_LOCAL_FFPROBE") or str(Path(FFMPEG).with_name(
 CLAUDE_BIN = os.environ.get("MEETING_LOCAL_CLAUDE") or shutil.which("claude") or str(HOME / ".local/bin/claude")
 CLAUDE_MODEL = os.environ.get("MEETING_LOCAL_CLAUDE_MODEL")  # None = claude CLI 預設模型
 SETTINGS_PATH = _env_path("MEETING_LOCAL_SETTINGS", HOME / ".config/echoic-local/settings.json")
+# 線上語音辨識（選用）的 key：只放這個 0600 的檔（或環境變數 MEETING_LOCAL_STT_API_KEY），不進 settings.json。
+STT_API_KEY_PATH = _env_path("MEETING_LOCAL_STT_API_KEY_FILE", SETTINGS_PATH.parent / "stt-api-key")
+STT_CHUNK_SECONDS = float(os.environ.get("MEETING_LOCAL_STT_CHUNK_SECONDS", "600"))
 
 
 def claude_available() -> bool:

@@ -29,12 +29,13 @@ class WhisperServer:
         binary: Path | None = None,
         model: Path | None = None,
         port: int = config.WHISPER_PORT,
-        threads: int = config.WHISPER_THREADS,
+        threads: int | None = None,
         language: str = config.WHISPER_LANGUAGE,
         vad: bool = config.WHISPER_VAD,
         vad_model: Path | None = None,
         ready_timeout: float = 240.0,
         max_context: int | None = config.WHISPER_MAX_CONTEXT,
+        background: bool = False,
     ):
         # 路徑在建構時才讀 config：UI 同一個程序裡剛下載完模型，config 的值已經更新
         vad_model = vad_model or config.VAD_MODEL
@@ -42,7 +43,9 @@ class WhisperServer:
         self.binary = Path(binary or config.WHISPER_SERVER)
         self.model = Path(model or config.WHISPER_MODEL)
         self.port = port
-        self.threads = threads
+        self.background = background
+        self.threads = threads or (config.WHISPER_THREADS_BACKGROUND if background else config.WHISPER_THREADS)
+        self.gpu = True  # whisper.cpp 預設用 Metal；純 CPU（-ng）實測慢 7.5 倍，背景模式也不用
         self.language = language
         self.vad = vad and Path(vad_model).exists()
         self.vad_model = Path(vad_model)
@@ -63,6 +66,9 @@ class WhisperServer:
             cmd += ["--vad", "--vad-model", str(self.vad_model)]
         if self.max_context is not None and self.max_context >= 0:
             cmd += ["-mc", str(self.max_context)]
+        if self.background and config.BACKGROUND_NICE:
+            # 用 nice 指令包起來，不用 preexec_fn（多執行緒程序裡 fork 後跑 Python 不安全）
+            cmd = ["/usr/bin/nice", "-n", str(config.BACKGROUND_NICE), *cmd]
         return cmd
 
     def start(self) -> None:

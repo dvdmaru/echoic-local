@@ -18,8 +18,8 @@ REPO = "https://github.com/dvdmaru/echoic-local"
 DMG = "EchoicLocal-mac-arm64.dmg"
 DOWNLOAD = f"{REPO}/releases/latest/download/{DMG}"
 RELEASES = f"{REPO}/releases/latest"
-VERSION = "0.3.1"
-DATE = "2026-11-01"
+VERSION = "0.4.0"
+DATE = "2026-11-10"
 GA_ID = os.environ.get("ECHOIC_GA_ID", "G-80DLMF08HF").strip()
 KANDONG = "https://kandong.twtools.cc/"
 CLAUDE_CODE = "https://docs.claude.com/en/docs/claude-code"
@@ -27,7 +27,7 @@ BLACKHOLE = "https://existential.audio/blackhole/"
 
 TAGLINE = "會議錄音，在自己的 Mac 上變成逐字稿"
 DESC = ("Echoic 本機版是免費開源的會議逐字稿工具：在自己的 Mac 上把會議錄音轉成台灣正體逐字稿，分好誰在說話、每段有時間戳，"
-        "錄音不上傳。想要摘要，再用你自己登入的 Claude 產生。目前支援 Apple Silicon Mac。")
+        "預設錄音不上傳。想要摘要，再用你自己登入的 Claude 產生。目前支援 Apple Silicon Mac。")
 
 ICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E"
         "%3Crect width='32' height='32' rx='8' fill='%230f5c57'/%3E"
@@ -37,11 +37,12 @@ ICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0
 
 FAQ = [
     ("要錢嗎？",
-     "不用。Echoic 本機版是 MIT 授權的開源軟體，語音辨識與說話人分離都在你的電腦上執行，沒有月費。"
-     "摘要是選用功能，用的是你自己的 Claude 方案。"),
+     "不用。Echoic 本機版是 MIT 授權的開源軟體，語音辨識與說話人分離預設都在你的電腦上執行，沒有月費。"
+     "摘要是選用功能，用的是你自己的 Claude 方案；自己選用線上語音辨識時，費用依你選的服務計。"),
     ("錄音會被上傳嗎？",
-     "不會。錄音、逐字稿都只存在你的電腦（預設在「下載項目」的 meetings 資料夾）。只有你打開摘要功能時，"
-     "逐字稿文字才會送進你自己登入的 Claude Code；錄音檔本身一律不送。下載軟體與模型仍需要網路。"),
+     "預設不會。錄音、逐字稿都只存在你的電腦（預設在「下載項目」的 meetings 資料夾）。只有你打開摘要功能時，"
+     "逐字稿文字才會送進你自己登入的 Claude Code。0.4.0 起可以自己選線上語音辨識，選了就會把錄音上傳到你填的服務，"
+     "App 會先提醒你；沒選就一律不送。下載軟體與模型仍需要網路。"),
     ("摘要會吃掉我的 Claude 額度嗎？",
      "會，所以預設關。一小時的會議大約送出 4～5 萬字、拿回約 1 萬字（專名候選表與摘要各一次）。"
      "用 Pro（每月 US$20）方案時，一天做好幾場長會議可能比較快碰到用量上限。你可以只出逐字稿，想要哪一場的摘要再單獨按一次。"),
@@ -51,12 +52,19 @@ FAQ = [
      "目前只有 Apple Silicon（M1 以後）的 Mac 版，macOS 13 以上。Windows 版開發中。語音辨識模型約 1.6 GB，"
      "執行時建議至少 16 GB 記憶體；同時開很多 Chrome 分頁會變慢。"),
     ("要多久？",
-     "M4 MacBook Air 實測 17 場會議：語音辨識每小時錄音多半要 4～6 分鐘，說話人分離另外要幾分鐘。實際時間依錄音長度、電腦與同時開的程式而定。"),
+     "M4 MacBook Air 實測 17 場會議：語音辨識每小時錄音多半要 4～6 分鐘，說話人分離另外約 7 分鐘。實際時間依錄音長度、電腦與同時開的程式而定。"),
+    ("轉逐字稿的時候電腦會卡嗎？",
+     "0.4.0 起，轉的時候視窗和其他程式照常能用（說話人分離改在獨立程序跑，以前會讓視窗一次凍住半分鐘以上）。"
+     "語音辨識主要用 GPU，剪片、遊戲這類重度用 GPU 的工作會一起變慢。想再讓出一點資源，可以勾「本機背景模式」，代價是多花約 4 成時間。"),
+    ("可以用線上的語音辨識嗎？",
+     "可以，0.4.0 起是選用功能、預設關。按「線上 API 設定…」填任何 OpenAI 相容的服務（OpenAI、Groq 或自己架的 whisper 伺服器）與 API key。"
+     "選了就會把錄音上傳到那個服務，上傳後怎麼保存、會不會拿去訓練依該服務的條款而定；公司或客戶的會議請先確認可以交給第三方。"
+     "API key 只存在你的電腦，說話人分離與轉台灣正體仍在本機做。"),
     ("可以錄 Google Meet、Teams、Zoom 嗎？",
      "可以錄你的麥克風和電腦播出的聲音。錄對方的聲音要先裝免費的 BlackHole 虛擬音源，並在「音訊 MIDI 設定」建立多重輸出裝置，步驟在安裝教學。"
      "不管錄什麼，都請先取得與會者同意。"),
     ("有即時字幕嗎？",
-     "沒有。Echoic 本機版只做會後批次轉錄：錄完再轉，換來的是不用連網、不用月費。"),
+     "沒有。Echoic 本機版只做會後批次轉錄：錄完再轉，換來的是預設不用連網、不用月費。"),
     ("逐字稿準嗎？",
      "語音辨識難免出錯，尤其是同音的專有名詞（例如「輝達」寫成「揮達」）。常錯的詞收進「詞彙表」一次，之後每場會自動修正。"
      "說話人分離在多人同時講話時也會分錯；知道與會人數就填進去，會準很多。重要內容請回聽原音，每一段都有時間戳。"),
@@ -160,7 +168,7 @@ def dl_button(cls: str = "btn") -> str:
 
 def page_index() -> str:
     feats = [
-        ("🔒", "錄音不出你的電腦", "語音辨識和說話人分離都在本機跑。沒有雲端轉錄、沒有帳號、沒有月費。"),
+        ("🔒", "錄音預設不出你的電腦", "語音辨識和說話人分離預設都在本機跑，沒有帳號、沒有月費。想讓電腦少做一點，也可以自己選線上語音辨識（會上傳錄音）。"),
         ("🗣️", "分好誰在說話", "自動分出 SPEAKER_00、01…；填了與會者，還會照人數分，摘要直接用人名。"),
         ("🇹🇼", "台灣正體＋詞彙表", "輸出一律台灣正體。公司名、產品名常寫錯？收進詞彙表一次，之後每場自動修。"),
         ("⏱️", "每段都有時間戳", "逐字稿、決議、待辦都附時間，想確認就回去聽原音。"),
@@ -174,7 +182,7 @@ def page_index() -> str:
 <div>
 <p class="eyebrow">免費開源・Mac・會後逐字稿</p>
 <h1>會議錄音，<br>在自己的 Mac 上<br><span class="hl">變成逐字稿</span>。</h1>
-<p class="lead">分好誰在說話、每段都有時間戳、一律台灣正體。錄音不上傳。想要摘要，再用你自己的 Claude。</p>
+<p class="lead">分好誰在說話、每段都有時間戳、一律台灣正體。錄音預設不上傳。想要摘要，再用你自己的 Claude。</p>
 <div class="cta">{dl_button()}<a class="btn ghost" href="/guide/">先看安裝教學</a></div>
 <p class="note">錄音前，請先取得與會者同意。</p>
 </div>
@@ -198,7 +206,7 @@ def page_index() -> str:
 <li><b>轉</b><span>按「轉逐字稿」，等語音辨識和說話人分離跑完。</span></li>
 <li><b>看</b><span>打開資料夾：逐字稿、說話人、（選用）摘要都在裡面，也能直接當 Obsidian 筆記庫。</span></li>
 </ol>
-<p class="small">M4 MacBook Air 實測：語音辨識每小時錄音多半 4～6 分鐘，說話人分離另外要幾分鐘。</p>
+<p class="small">M4 MacBook Air 實測：語音辨識每小時錄音多半 4～6 分鐘，說話人分離另外約 7 分鐘；轉的時候照常能用電腦。</p>
 </section>
 
 <section class="wrap bounds"><h2 class="sec">先說清楚做不到的</h2>
@@ -372,7 +380,7 @@ kbd{border:1px solid #ccc;border-bottom-width:2px;border-radius:5px;padding:0 5p
 def llms() -> str:
     return f"""# {NAME}（Echoic Local）
 
-> 免費開源（MIT）的 Mac 會議逐字稿工具。會後在使用者自己的電腦把錄音轉成台灣正體逐字稿（whisper.cpp 語音辨識＋sherpa-onnx 說話人分離），錄音不上傳。摘要選用，透過使用者自己登入的 Claude Code 產生，會用到使用者自己 Claude 方案的額度，預設關閉。目前只支援 Apple Silicon Mac（macOS 13+）；沒有即時字幕。
+> 免費開源（MIT）的 Mac 會議逐字稿工具。會後在使用者自己的電腦把錄音轉成台灣正體逐字稿（whisper.cpp 語音辨識＋sherpa-onnx 說話人分離），預設錄音不上傳；0.4.0 起可自選 OpenAI 相容的線上語音辨識（選了會上傳錄音，預設關）。摘要選用，透過使用者自己登入的 Claude Code 產生，會用到使用者自己 Claude 方案的額度，預設關閉。目前只支援 Apple Silicon Mac（macOS 13+）；沒有即時字幕。
 
 ## 頁面
 - [首頁與下載]({BASE}/)：功能、限制、下載連結。

@@ -1,6 +1,6 @@
 # Echoic 本機版（Echoic Local）
 
-> 免費開源（MIT）的 Mac 會議逐字稿工具。會後在使用者自己的電腦把錄音轉成台灣正體逐字稿（whisper.cpp 語音辨識＋sherpa-onnx 說話人分離），錄音不上傳。摘要選用，透過使用者自己登入的 Claude Code 產生，會用到使用者自己 Claude 方案的額度，預設關閉。目前只支援 Apple Silicon Mac（macOS 13+）；沒有即時字幕。
+> 免費開源（MIT）的 Mac 會議逐字稿工具。會後在使用者自己的電腦把錄音轉成台灣正體逐字稿（whisper.cpp 語音辨識＋sherpa-onnx 說話人分離），預設錄音不上傳；0.4.0 起可自選 OpenAI 相容的線上語音辨識（選了會上傳錄音，預設關）。摘要選用，透過使用者自己登入的 Claude Code 產生，會用到使用者自己 Claude 方案的額度，預設關閉。目前只支援 Apple Silicon Mac（macOS 13+）；沒有即時字幕。
 
 ## 頁面
 - [首頁與下載](https://echoic.twtools.cc/)：功能、限制、下載連結。
