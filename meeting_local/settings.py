@@ -23,6 +23,8 @@ DEFAULTS = {
     "stt_api_base_url": DEFAULT_BASE_URL,
     "stt_api_model": DEFAULT_MODEL,
     "local_speed": "fast",
+    "update_check": True,       # 安裝版每天最多查一次 GitHub 有沒有新版（只連 GitHub、不送會議內容）
+    "update_checked_at": 0.0,
 }
 
 # 給 UI 與 README 共用的說明。數字來源：2026-09～10 實際 26 場會議，一小時逐字稿中位數約 2 萬字，
@@ -36,8 +38,10 @@ SUMMARY_COST_NOTE = (
 
 
 def _valid(key: str, value) -> bool:
-    if key == "auto_summary":
+    if key in ("auto_summary", "update_check"):
         return isinstance(value, bool)
+    if key == "update_checked_at":
+        return isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0
     if key == "stt_engine":
         return value in ENGINES
     if key == "local_speed":

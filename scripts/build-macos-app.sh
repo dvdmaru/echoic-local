@@ -34,7 +34,19 @@ env -i HOME="$HOME" PATH=/usr/bin:/bin TMPDIR="${TMPDIR:-/tmp}" \
 SMOKE_PID=$!
 sleep 8
 if kill -0 "$SMOKE_PID" 2>/dev/null; then
-  kill "$SMOKE_PID"; wait "$SMOKE_PID" 2>/dev/null || true
+  # 收掉測試用的 App：TERM 後最多等 10 秒，還在就 KILL。不能直接 wait——
+  # 2026-11-10 背景跑三次卡兩次（TERM 沒生效、wait 無限等 2 小時，沒有任何錯誤訊息）；手動補一次 TERM 就結束。
+  kill "$SMOKE_PID" 2>/dev/null || true
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    kill -0 "$SMOKE_PID" 2>/dev/null || break
+    sleep 1
+    kill "$SMOKE_PID" 2>/dev/null || true
+  done
+  if kill -0 "$SMOKE_PID" 2>/dev/null; then
+    echo "⚠️ 冒煙測試用的 App 10 秒內沒結束，改用 KILL" >&2
+    kill -9 "$SMOKE_PID" 2>/dev/null || true
+  fi
+  wait "$SMOKE_PID" 2>/dev/null || true
   echo "✅ 冒煙測試：無 LANG 啟動 8 秒仍在跑"
 else
   echo "❌ 冒煙測試：無 LANG 啟動後自己結束，看 $SMOKE_LOG" >&2

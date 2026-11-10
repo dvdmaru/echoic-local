@@ -29,8 +29,8 @@ gtag('js',new Date());gtag('config','G-80DLMF08HF');
 document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[data-dl]');
 if(a)gtag('event','echoic_local_download',{platform:a.getAttribute('data-dl')});});
 </script>
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Echoic 本機版", "alternateName": "Echoic Local", "description": "Echoic 本機版是免費開源的會議逐字稿工具：在自己的 Mac 上把會議錄音轉成台灣正體逐字稿，分好誰在說話、每段有時間戳，預設錄音不上傳。想要摘要，再用你自己登入的 Claude 產生。目前支援 Apple Silicon Mac。", "applicationCategory": "BusinessApplication", "operatingSystem": "macOS 13+ (Apple Silicon)", "softwareVersion": "0.4.0", "inLanguage": "zh-TW", "isAccessibleForFree": true, "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "TWD"}, "url": "https://echoic.twtools.cc/", "downloadUrl": "https://github.com/dvdmaru/echoic-local/releases/latest", "codeRepository": "https://github.com/dvdmaru/echoic-local"}</script>
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "HowTo", "name": "安裝並使用 Echoic 本機版", "step": [{"@type": "HowToStep", "name": "下載", "position": 1}, {"@type": "HowToStep", "name": "第一次開啟：到「隱私權與安全性」按「仍要打開」", "position": 2}, {"@type": "HowToStep", "name": "允許麥克風", "position": 3}, {"@type": "HowToStep", "name": "下載語音辨識模型", "position": 4}, {"@type": "HowToStep", "name": "錄音、轉逐字稿", "position": 5}, {"@type": "HowToStep", "name": "（選用）產生摘要", "position": 6}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Echoic 本機版", "alternateName": "Echoic Local", "description": "Echoic 本機版是免費開源的會議逐字稿工具：在自己的 Mac 上把會議錄音轉成台灣正體逐字稿，分好誰在說話、每段有時間戳，預設錄音不上傳。想要摘要，再用你自己登入的 Claude 產生。目前支援 Apple Silicon Mac。", "applicationCategory": "BusinessApplication", "operatingSystem": "macOS 13+ (Apple Silicon)", "softwareVersion": "0.5.0", "inLanguage": "zh-TW", "isAccessibleForFree": true, "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "TWD"}, "url": "https://echoic.twtools.cc/", "downloadUrl": "https://github.com/dvdmaru/echoic-local/releases/latest", "codeRepository": "https://github.com/dvdmaru/echoic-local"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "HowTo", "name": "安裝並使用 Echoic 本機版", "step": [{"@type": "HowToStep", "name": "下載", "position": 1}, {"@type": "HowToStep", "name": "第一次開啟：macOS 說「無法打開」時，按「完成」，不要按「丟到垃圾桶」", "position": 2}, {"@type": "HowToStep", "name": "允許麥克風", "position": 3}, {"@type": "HowToStep", "name": "下載語音辨識模型", "position": 4}, {"@type": "HowToStep", "name": "錄音、轉逐字稿", "position": 5}, {"@type": "HowToStep", "name": "（選用）產生摘要", "position": 6}]}</script>
 </head>
 <body>
 <header class="top"><div class="wrap bar">
@@ -40,7 +40,21 @@ if(a)gtag('event','echoic_local_download',{platform:a.getAttribute('data-dl')});
 <main class="wrap doc">
 <h1>安裝教學</h1>
 <p class="lead">需要 Apple Silicon（M1 以後）的 Mac、macOS 13 以上，以及約 2 GB 的空間（App＋語音辨識模型）。</p>
-<ol class="guide"><li><h2>下載</h2><p>到 <a href="https://github.com/dvdmaru/echoic-local/releases/latest/download/EchoicLocal-mac-arm64.dmg" data-dl="mac">GitHub Releases 下載 EchoicLocal-mac-arm64.dmg</a>，打開後把「Echoic 本機版」拖到「應用程式」。</p></li><li><h2>第一次開啟：到「隱私權與安全性」按「仍要打開」</h2><p>這個 App 沒有付費的 Apple 公證，第一次雙擊時 macOS 會跳出「無法打開」的警告，只有「丟到垃圾桶」和「完成」兩個按鈕：按<strong>「完成」</strong>。接著打開「系統設定 → 隱私權與安全性」，往下捲到「安全性」，會看到 App 已被阻擋，按<strong>「仍要打開」</strong>（英文介面是 Open Anyway），輸入密碼後再按一次「打開」。只需要做一次。macOS 14 以前也可以對 App 按右鍵 →「打開」；macOS 15 起 Apple 拿掉了這條捷徑。</p><svg class="illus" viewBox="0 0 640 260" role="img" aria-label="系統設定的隱私權與安全性頁面，在安全性區塊按「仍要打開」">
+<ol class="guide"><li><h2>下載</h2><p>到 <a href="https://github.com/dvdmaru/echoic-local/releases/latest/download/EchoicLocal-mac-arm64.dmg" data-dl="mac">GitHub Releases 下載 EchoicLocal-mac-arm64.dmg</a>，打開後把「Echoic 本機版」拖到「應用程式」。</p></li><li><h2>第一次開啟：macOS 說「無法打開」時，按「完成」，不要按「丟到垃圾桶」</h2><p>這個 App 沒有付費的 Apple 公證，用瀏覽器下載的版本第一次雙擊時，macOS 會跳出「無法打開」的警告，只有「丟到垃圾桶」和「完成」兩個按鈕。請按<strong>「完成」</strong>，再從<a href="#blocked">下面三種做法</a>挑一種打開它（最簡單的是到「系統設定 → 隱私權與安全性」按「仍要打開」）。每台電腦只需要做一次；之後在 App 裡更新也不會再被擋。</p></li><li><h2>允許麥克風</h2><p>第一次錄音時 macOS 會問能不能用麥克風，按「允許」。錄音只存在你的電腦。</p></li><li><h2>下載語音辨識模型</h2><p>按「下載語音辨識模型」，約 1.6 GB，從 Hugging Face 官方下載並比對 SHA256。裝過<a href="https://kandong.twtools.cc/">看懂 KanDong</a>的話，通常已經有了，按鈕會直接顯示就緒。</p></li><li><h2>錄音、轉逐字稿</h2><p>選錄音來源（實體會議選「只錄麥克風」，線上會議選「兩者都錄」），按「開始錄音」，結束按「停止」，再按「轉逐字稿」。與會者有填，說話人分離會準很多。</p></li><li><h2>（選用）產生摘要</h2><p>先安裝並登入 <a href="https://docs.claude.com/en/docs/claude-code">Claude Code</a>。勾「轉完逐字稿後自動用 Claude 產生摘要」，或對單場按「產生這場摘要」。會用到你 Claude 方案的額度，所以預設不自動做。</p></li></ol>
+
+<h2 id="blocked">第一次打開被擋：三種做法，你選</h2>
+<p><strong>為什麼會被擋</strong>：Apple 要開發者每年付費加入開發者計畫、把 App 送去「公證」，macOS 才會直接放行。Echoic 本機版 目前沒有做這件事，所以用瀏覽器下載的版本會被標成「從網路下載、未經驗證」，第一次打開就被擋下來。
+App 是開源的，程式碼都在 <a href="https://github.com/dvdmaru/echoic-local">GitHub</a>；每個安裝檔都附 SHA-256（<a href="https://github.com/dvdmaru/echoic-local/releases/latest">Releases 頁</a>的 <code>SHA256SUMS.txt</code>），可以自己比對檔案沒被動過。相信這個 App 再用下面任一種做法打開它，不相信就不要裝。</p>
+
+<h3 id="blocked-settings">做法一：系統設定按「仍要打開」（不用終端機）</h3>
+<ol>
+<li>雙擊「Echoic 本機版」。macOS 說「無法打開」時，按<strong>「完成」</strong>（不要按「丟到垃圾桶」）。</li>
+<li>打開「系統設定」→ 左邊選「隱私權與安全性」→ 往下捲到「安全性」。</li>
+<li>會看到「已阻擋『Echoic 本機版』」，按旁邊的<strong>「仍要打開」</strong>（英文介面是 Open Anyway），輸入電腦密碼。</li>
+<li>再跳一次確認視窗時，按<strong>「打開」</strong>。之後雙擊就能直接開。</li>
+</ol>
+<p class="small">「安全性」那裡沒有按鈕：先回去雙擊一次 App 再回來看，按鈕只會在被擋之後的一小時內出現。macOS 14 以前也可以對 App 按右鍵 →「打開」；macOS 15 起 Apple 拿掉了這條捷徑。</p>
+<svg class="illus" viewBox="0 0 640 260" role="img" aria-label="系統設定的隱私權與安全性頁面，在安全性區塊按「仍要打開」">
 <rect x="0" y="0" width="640" height="260" rx="16" fill="#fff"/>
 <rect x="24" y="24" width="392" height="212" rx="12" fill="#f3efe6"/>
 <circle cx="44" cy="42" r="5" fill="#ff5f57"/><circle cx="60" cy="42" r="5" fill="#febc2e"/><circle cx="76" cy="42" r="5" fill="#28c840"/>
@@ -63,7 +77,22 @@ if(a)gtag('event','echoic_local_download',{platform:a.getAttribute('data-dl')});
 <text x="436" y="150" font-size="15" fill="#1d2321">隱私權與安全性</text>
 <text x="436" y="186" font-size="15" fill="#1d2321">③ 往下捲，按</text>
 <text x="436" y="208" font-size="15" fill="#1d2321">「仍要打開」</text>
-</svg></li><li><h2>允許麥克風</h2><p>第一次錄音時 macOS 會問能不能用麥克風，按「允許」。錄音只存在你的電腦。</p></li><li><h2>下載語音辨識模型</h2><p>按「下載語音辨識模型」，約 1.6 GB，從 Hugging Face 官方下載並比對 SHA256。裝過<a href="https://kandong.twtools.cc/">看懂 KanDong</a>的話，通常已經有了，按鈕會直接顯示就緒。</p></li><li><h2>錄音、轉逐字稿</h2><p>選錄音來源（實體會議選「只錄麥克風」，線上會議選「兩者都錄」），按「開始錄音」，結束按「停止」，再按「轉逐字稿」。與會者有填，說話人分離會準很多。</p></li><li><h2>（選用）產生摘要</h2><p>先安裝並登入 <a href="https://docs.claude.com/en/docs/claude-code">Claude Code</a>。勾「轉完逐字稿後自動用 Claude 產生摘要」，或對單場按「產生這場摘要」。會用到你 Claude 方案的額度，所以預設不自動做。</p></li></ol>
+</svg>
+
+<h3 id="blocked-xattr">做法二：已經裝進「應用程式」了，用一行指令解除</h3>
+<p>打開「終端機」（在「應用程式 → 工具程式」），貼上這行、按 Return：</p>
+<pre>xattr -dr com.apple.quarantine "/Applications/Echoic 本機版.app"</pre>
+<p>這行只做一件事：拿掉 macOS 幫這個 App 貼的「從網路下載」標記。之後雙擊就能開。</p>
+
+<h3 id="blocked-install">做法三：不經過瀏覽器，用一行指令直接安裝</h3>
+<p>還沒下載、或想之後都這樣裝：打開「終端機」，貼上這行、按 Return：</p>
+<pre>curl -fsSL https://echoic.twtools.cc/install.sh | bash</pre>
+<p>這支<a href="/install.sh">安裝腳本</a>只做五件事：從 GitHub Releases 下載最新版 dmg 與 <code>SHA256SUMS.txt</code>、比對 SHA-256（不符就停止，什麼都不裝）、把 App 複製到「應用程式」（覆蓋舊版）、卸載並刪掉暫存檔、打開 App。用 curl 下載的檔案不會被標成「從網路下載」，所以不會跳出警告。</p>
+<p>想先看過內容再執行（比較謹慎的做法）：</p>
+<pre>curl -fsSL https://echoic.twtools.cc/install.sh -o install.sh
+less install.sh
+bash install.sh</pre>
+<p class="small">只對你信任的網址這樣做。這個做法需要你的帳號能寫入「應用程式」資料夾（一般是管理者帳號）；不是的話請用做法一。</p>
 
 <h2 id="online">錄線上會議（對方的聲音）</h2>
 <p>macOS 預設錄不到電腦播出來的聲音，要先裝免費的 <a href="https://existential.audio/blackhole/">BlackHole 2ch</a> 虛擬音源：</p>
@@ -89,7 +118,7 @@ if(a)gtag('event','echoic_local_download',{platform:a.getAttribute('data-dl')});
 
 <h2 id="trouble">卡住了？</h2>
 <ul>
-<li><strong>打不開、說「無法打開」或「無法確認開發者」</strong>：照第 2 步到「系統設定 → 隱私權與安全性」按「仍要打開」。那裡沒有按鈕的話，先回去雙擊一次 App 再看。熟悉終端機的話，也可以執行 <code>xattr -dr com.apple.quarantine "/Applications/Echoic 本機版.app"</code> 後再雙擊。</li>
+<li><strong>打不開、說「無法打開」或「無法確認開發者」</strong>：看上面的<a href="#blocked">三種做法</a>。不小心按了「丟到垃圾桶」：到垃圾桶把 App 拖回「應用程式」，或重新下載。</li>
 <li><strong>錄不到聲音</strong>：「系統設定 → 隱私權與安全性 → 麥克風」確認有允許 Echoic 本機版。</li>
 <li><strong>沒錄到對方</strong>：輸出裝置要選多重輸出裝置，錄音來源要選「兩者都錄」。</li>
 <li><strong>摘要按鈕是灰的</strong>：沒偵測到 Claude Code。安裝並登入後重新開啟 App。</li>

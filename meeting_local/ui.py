@@ -18,7 +18,7 @@ from collections import deque
 from pathlib import Path
 from tkinter import messagebox, ttk
 
-from . import __version__, config, settings
+from . import __version__, config, settings, updater
 from .audio import build_record_cmd, describe_devices, input_volume_note, list_audio_devices, pick_blackhole, pick_microphone, probe
 from .outputs import update_run_json
 from .summarize import safe_title
@@ -171,6 +171,11 @@ class RecorderUI:
         self.btn_summary.pack(side="left", padx=(8, 0))
         self.btn_open = ttk.Button(row2, text="開啟資料夾", command=self.open_folder, state="disabled")
         self.btn_open.pack(side="left", padx=(8, 0))
+        self.btn_update = ttk.Button(row2, text="檢查更新", command=self.update_clicked)
+        self.btn_update.pack(side="right")
+        self.update_var = tk.BooleanVar(value=settings.load()["update_check"])
+        ttk.Checkbutton(row2, text="自動", variable=self.update_var, command=self._toggle_update_check).pack(side="right", padx=(0, 4))
+        self._release: dict | None = None
 
         self.log = tk.Text(frm, height=8, font=("Menlo", 11), bg="#f6f6f6")
         self.log.pack(fill="both", expand=True, pady=(4, 0))
@@ -178,6 +183,7 @@ class RecorderUI:
 
         root.protocol("WM_DELETE_WINDOW", self.on_close)
         root.after(0, self._startup_health)
+        root.after(1500, self._auto_update_check)
         self._tick()
 
     # ---------------------------------------------------------- helpers
@@ -392,6 +398,90 @@ class RecorderUI:
             self.btn_open.configure(state="normal")
         else:
             self.set_status("❌ 沒有錄到東西（檔案不存在或幾乎是空的）。檢查麥克風權限，看資料夾裡的 ffmpeg.log。")
+
+    # ---------------------------------------------------------- 更新（只對安裝版；見 updater.py）
+    def _toggle_update_check(self) -> None:
+        try:
+            settings.save({"update_check": bool(self.update_var.get())})
+        except OSError as exc:
+            self.say(f"⚠️ 設定沒存起來：{exc}")
+
+    def _auto_update_check(self) -> None:
+        s = settings.load()
+        if updater.app_bundle() is None or not s["update_check"] or not updater.due(s["update_checked_at"]):
+            return
+        self._check_update(silent=True)
+
+    def _check_update(self, silent: bool = False) -> None:
+        def worker() -> None:
+            try:
+                rel, err = updater.latest_release(), None
+            except (RuntimeError, ValueError, OSError) as exc:
+                rel, err = None, str(exc)
+            self.root.after(0, self._update_checked, rel, err, silent)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _update_checked(self, rel: dict | None, err: str | None, silent: bool) -> None:
+        try:
+            settings.save({"update_checked_at": time.time()})
+        except OSError:
+            pass
+        if err or rel is None:
+            if not silent:
+                self.say(f"⚠️ 檢查更新失敗：{err}")
+            return
+        if updater.newer(rel["version"], __version__):
+            self._release = rel
+            self.btn_update.configure(text=f"更新到 {rel['version']}")
+            self.say(f"🆕 有新版 {rel['version']}（你現在是 {__version__}）：按右下角「更新到 {rel['version']}」，"
+                     "App 會自己下載、比對檔案、換新版並重開。")
+        elif not silent:
+            self.say(f"✅ 已經是最新版（{__version__}）")
+
+    def update_clicked(self) -> None:
+        if self.proc is not None or self.busy:
+            messagebox.showinfo("等一下再更新", "錄音或轉逐字稿進行中，結束後再更新。")
+            return
+        bundle = updater.app_bundle()
+        if bundle is None:
+            messagebox.showinfo("從原始碼執行", "你是從原始碼執行這個工具：在專案資料夾跑 git pull 就是更新。")
+            return
+        rel = self._release
+        if rel is None:
+            self.say("檢查更新中…")
+            self._check_update()
+            return
+        if not messagebox.askyesno(
+            f"更新到 {rel['version']}？",
+            f"會從 GitHub 下載 {rel['version']}（約 55 MB）、比對官方 SHA-256，再關閉 App、換成新版並自動重開。\n"
+            "會議資料、設定、模型都不會動。\n\n現在更新嗎？",
+        ):
+            return
+        self._set_busy(True)
+        self.btn_update.configure(state="disabled")
+        self.set_status(f"⏳ 下載 {rel['version']}…")
+
+        def worker() -> None:
+            try:
+                new = updater.prepare(rel, bundle, log=lambda t: self.root.after(0, self.say, t))
+            except (RuntimeError, OSError, subprocess.CalledProcessError) as exc:
+                self.root.after(0, self._update_failed, str(exc))
+                return
+            self.root.after(0, self._update_ready, bundle, new)
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _update_failed(self, msg: str) -> None:
+        self._set_busy(False)
+        self.btn_update.configure(state="normal")
+        self.say("❌ " + msg)
+        self.set_status("❌ 更新沒有完成，舊版沒動。可以稍後再試，或用官網的安裝方式。")
+
+    def _update_ready(self, bundle: Path, new: Path) -> None:
+        self.say("✅ 新版準備好了，App 會關閉並自動重開。")
+        updater.launch_swap(bundle, new)
+        self.root.after(500, self.on_close)
 
     # ---------------------------------------------------------- 語音辨識引擎
     def _refresh_engine_note(self) -> None:

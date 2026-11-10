@@ -29,7 +29,7 @@ gtag('js',new Date());gtag('config','G-80DLMF08HF');
 document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[data-dl]');
 if(a)gtag('event','echoic_local_download',{platform:a.getAttribute('data-dl')});});
 </script>
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Echoic 本機版", "alternateName": "Echoic Local", "description": "Echoic 本機版是免費開源的會議逐字稿工具：在自己的 Mac 上把會議錄音轉成台灣正體逐字稿，分好誰在說話、每段有時間戳，預設錄音不上傳。想要摘要，再用你自己登入的 Claude 產生。目前支援 Apple Silicon Mac。", "applicationCategory": "BusinessApplication", "operatingSystem": "macOS 13+ (Apple Silicon)", "softwareVersion": "0.4.0", "inLanguage": "zh-TW", "isAccessibleForFree": true, "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "TWD"}, "url": "https://echoic.twtools.cc/", "downloadUrl": "https://github.com/dvdmaru/echoic-local/releases/latest", "codeRepository": "https://github.com/dvdmaru/echoic-local"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Echoic 本機版", "alternateName": "Echoic Local", "description": "Echoic 本機版是免費開源的會議逐字稿工具：在自己的 Mac 上把會議錄音轉成台灣正體逐字稿，分好誰在說話、每段有時間戳，預設錄音不上傳。想要摘要，再用你自己登入的 Claude 產生。目前支援 Apple Silicon Mac。", "applicationCategory": "BusinessApplication", "operatingSystem": "macOS 13+ (Apple Silicon)", "softwareVersion": "0.5.0", "inLanguage": "zh-TW", "isAccessibleForFree": true, "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "TWD"}, "url": "https://echoic.twtools.cc/", "downloadUrl": "https://github.com/dvdmaru/echoic-local/releases/latest", "codeRepository": "https://github.com/dvdmaru/echoic-local"}</script>
 </head>
 <body>
 <header class="top"><div class="wrap bar">
@@ -73,12 +73,12 @@ if(a)gtag('event','echoic_local_download',{platform:a.getAttribute('data-dl')});
 <li>沒有即時字幕，只做會後轉錄。</li>
 <li>目前只有 Apple Silicon Mac 版；Windows 版開發中。</li>
 <li>同音的專有名詞會寫錯，多人同時講話時說話人會分錯。重要內容請回聽原音。</li>
-<li>App 沒有付費的 Apple 公證，第一次開啟要到「系統設定 → 隱私權與安全性」按「仍要打開」。</li>
+<li>App 沒有付費的 Apple 公證：用瀏覽器下載的版本第一次打開會被 macOS 擋下來，要多做一步（<a href="/guide/#blocked">三種做法，你選</a>）。</li>
 </ul></section>
 
-<section class="wrap"><h2 class="sec">常見問題</h2><div class="faq"><details><summary>要錢嗎？</summary><p>不用。Echoic 本機版是 MIT 授權的開源軟體，語音辨識與說話人分離預設都在你的電腦上執行，沒有月費。摘要是選用功能，用的是你自己的 Claude 方案；自己選用線上語音辨識時，費用依你選的服務計。</p></details><details><summary>錄音會被上傳嗎？</summary><p>預設不會。錄音、逐字稿都只存在你的電腦（預設在「下載項目」的 meetings 資料夾）。只有你打開摘要功能時，逐字稿文字才會送進你自己登入的 Claude Code。0.4.0 起可以自己選線上語音辨識，選了就會把錄音上傳到你填的服務，App 會先提醒你；沒選就一律不送。下載軟體與模型仍需要網路。</p></details><details><summary>摘要會吃掉我的 Claude 額度嗎？</summary><p>會，所以預設關。一小時的會議大約送出 4～5 萬字、拿回約 1 萬字（專名候選表與摘要各一次）。用 Pro（每月 US$20）方案時，一天做好幾場長會議可能比較快碰到用量上限。你可以只出逐字稿，想要哪一場的摘要再單獨按一次。</p></details><details><summary>沒有 Claude 可以用嗎？</summary><p>可以。沒裝 Claude Code 時只會產出逐字稿、說話人與時間戳，其他功能都一樣。</p></details></div><p><a href="/faq/">看全部常見問題 →</a></p></section>
+<section class="wrap"><h2 class="sec">常見問題</h2><div class="faq"><details><summary>要錢嗎？</summary><p>不用。Echoic 本機版是 MIT 授權的開源軟體，語音辨識與說話人分離預設都在你的電腦上執行，沒有月費。摘要是選用功能，用的是你自己的 Claude 方案；自己選用線上語音辨識時，費用依你選的服務計。</p></details><details><summary>錄音會被上傳嗎？</summary><p>預設不會。錄音、逐字稿都只存在你的電腦（預設在「下載項目」的 meetings 資料夾）。只有你打開摘要功能時，逐字稿文字才會送進你自己登入的 Claude Code。0.4.0 起可以自己選線上語音辨識，選了就會把錄音上傳到你填的服務，App 會先提醒你；沒選就一律不送。下載軟體與模型仍需要網路；安裝版每天最多向 GitHub 查一次有沒有新版（不含任何會議內容），App 右下角取消「自動」就不會查。</p></details><details><summary>摘要會吃掉我的 Claude 額度嗎？</summary><p>會，所以預設關。一小時的會議大約送出 4～5 萬字、拿回約 1 萬字（專名候選表與摘要各一次）。用 Pro（每月 US$20）方案時，一天做好幾場長會議可能比較快碰到用量上限。你可以只出逐字稿，想要哪一場的摘要再單獨按一次。</p></details><details><summary>沒有 Claude 可以用嗎？</summary><p>可以。沒裝 Claude Code 時只會產出逐字稿、說話人與時間戳，其他功能都一樣。</p></details></div><p><a href="/faq/">看全部常見問題 →</a></p></section>
 
-<section class="wrap final"><a class="btn" href="https://github.com/dvdmaru/echoic-local/releases/latest/download/EchoicLocal-mac-arm64.dmg" data-dl="mac">下載 Mac 版<small>Apple Silicon・macOS 13 以上・免費</small></a><p class="small">原始碼與授權：<a href="https://github.com/dvdmaru/echoic-local">GitHub</a>。版本 0.4.0。</p></section>
+<section class="wrap final"><a class="btn" href="https://github.com/dvdmaru/echoic-local/releases/latest/download/EchoicLocal-mac-arm64.dmg" data-dl="mac">下載 Mac 版<small>Apple Silicon・macOS 13 以上・免費</small></a><p class="small">原始碼與授權：<a href="https://github.com/dvdmaru/echoic-local">GitHub</a>。版本 0.5.0。</p></section>
 </main>
 <footer class="foot"><div class="wrap">
 <p><strong>Echoic 本機版</strong>：免費開源（MIT）的會議逐字稿工具。語音辨識使用 whisper.cpp、說話人分離使用 sherpa-onnx，都在你的電腦上執行。</p>

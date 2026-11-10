@@ -12,13 +12,14 @@ import os
 from pathlib import Path
 
 PUBLIC = Path(__file__).resolve().parents[1] / "public"
+INSTALL_SH = Path(__file__).resolve().parent / "install.sh"  # 一行安裝腳本：原稿在這裡，public/ 是複本
 BASE = "https://echoic.twtools.cc"
 NAME = "Echoic 本機版"
 REPO = "https://github.com/dvdmaru/echoic-local"
 DMG = "EchoicLocal-mac-arm64.dmg"
 DOWNLOAD = f"{REPO}/releases/latest/download/{DMG}"
 RELEASES = f"{REPO}/releases/latest"
-VERSION = "0.4.0"
+VERSION = "0.5.0"
 DATE = "2026-11-10"
 GA_ID = os.environ.get("ECHOIC_GA_ID", "G-80DLMF08HF").strip()
 KANDONG = "https://kandong.twtools.cc/"
@@ -42,12 +43,17 @@ FAQ = [
     ("錄音會被上傳嗎？",
      "預設不會。錄音、逐字稿都只存在你的電腦（預設在「下載項目」的 meetings 資料夾）。只有你打開摘要功能時，"
      "逐字稿文字才會送進你自己登入的 Claude Code。0.4.0 起可以自己選線上語音辨識，選了就會把錄音上傳到你填的服務，"
-     "App 會先提醒你；沒選就一律不送。下載軟體與模型仍需要網路。"),
+     "App 會先提醒你；沒選就一律不送。下載軟體與模型仍需要網路；安裝版每天最多向 GitHub 查一次有沒有新版（不含任何會議內容），"
+     "App 右下角取消「自動」就不會查。"),
     ("摘要會吃掉我的 Claude 額度嗎？",
      "會，所以預設關。一小時的會議大約送出 4～5 萬字、拿回約 1 萬字（專名候選表與摘要各一次）。"
      "用 Pro（每月 US$20）方案時，一天做好幾場長會議可能比較快碰到用量上限。你可以只出逐字稿，想要哪一場的摘要再單獨按一次。"),
     ("沒有 Claude 可以用嗎？",
      "可以。沒裝 Claude Code 時只會產出逐字稿、說話人與時間戳，其他功能都一樣。"),
+    ("為什麼 macOS 說「無法打開」，只給「丟到垃圾桶」？",
+     "因為這個 App 沒有付費的 Apple 公證，用瀏覽器下載的版本第一次打開會被 macOS 擋下來，不是 App 壞掉或有毒。"
+     "請按「完成」，不要按「丟到垃圾桶」，再從安裝教學的三種做法挑一種：系統設定按「仍要打開」、終端機一行指令解除，或用一行指令直接安裝。"
+     "App 是開源的，安裝檔都附 SHA-256 可以自己比對。"),
     ("我的電腦能用嗎？",
      "目前只有 Apple Silicon（M1 以後）的 Mac 版，macOS 13 以上。Windows 版開發中。語音辨識模型約 1.6 GB，"
      "執行時建議至少 16 GB 記憶體；同時開很多 Chrome 分頁會變慢。"),
@@ -74,10 +80,10 @@ FAQ = [
 
 GUIDE_STEPS = [
     ("下載", f'到 <a href="{DOWNLOAD}" data-dl="mac">GitHub Releases 下載 {DMG}</a>，打開後把「{NAME}」拖到「應用程式」。'),
-    ("第一次開啟：到「隱私權與安全性」按「仍要打開」",
-     "這個 App 沒有付費的 Apple 公證，第一次雙擊時 macOS 會跳出「無法打開」的警告，只有「丟到垃圾桶」和「完成」兩個按鈕：按<strong>「完成」</strong>。"
-     "接著打開「系統設定 → 隱私權與安全性」，往下捲到「安全性」，會看到 App 已被阻擋，按<strong>「仍要打開」</strong>（英文介面是 Open Anyway），"
-     "輸入密碼後再按一次「打開」。只需要做一次。macOS 14 以前也可以對 App 按右鍵 →「打開」；macOS 15 起 Apple 拿掉了這條捷徑。"),
+    ("第一次開啟：macOS 說「無法打開」時，按「完成」，不要按「丟到垃圾桶」",
+     "這個 App 沒有付費的 Apple 公證，用瀏覽器下載的版本第一次雙擊時，macOS 會跳出「無法打開」的警告，只有「丟到垃圾桶」和「完成」兩個按鈕。"
+     "請按<strong>「完成」</strong>，再從<a href=\"#blocked\">下面三種做法</a>挑一種打開它（最簡單的是到「系統設定 → 隱私權與安全性」按「仍要打開」）。"
+     "每台電腦只需要做一次；之後在 App 裡更新也不會再被擋。"),
     ("允許麥克風", "第一次錄音時 macOS 會問能不能用麥克風，按「允許」。錄音只存在你的電腦。"),
     ("下載語音辨識模型",
      f"按「下載語音辨識模型」，約 1.6 GB，從 Hugging Face 官方下載並比對 SHA256。裝過<a href=\"{KANDONG}\">看懂 KanDong</a>的話，"
@@ -214,7 +220,7 @@ def page_index() -> str:
 <li>沒有即時字幕，只做會後轉錄。</li>
 <li>目前只有 Apple Silicon Mac 版；Windows 版開發中。</li>
 <li>同音的專有名詞會寫錯，多人同時講話時說話人會分錯。重要內容請回聽原音。</li>
-<li>App 沒有付費的 Apple 公證，第一次開啟要到「系統設定 → 隱私權與安全性」按「仍要打開」。</li>
+<li>App 沒有付費的 Apple 公證：用瀏覽器下載的版本第一次打開會被 macOS 擋下來，要多做一步（<a href="/guide/#blocked">三種做法，你選</a>）。</li>
 </ul></section>
 
 <section class="wrap"><h2 class="sec">常見問題</h2><div class="faq">{faq_short}</div><p><a href="/faq/">看全部常見問題 →</a></p></section>
@@ -251,7 +257,7 @@ GATEKEEPER_SVG = f"""<svg class="illus" viewBox="0 0 640 260" role="img" aria-la
 
 
 def page_guide() -> str:
-    steps = "".join(f'<li><h2>{esc(t)}</h2><p>{body}</p>{GATEKEEPER_SVG if i == 1 else ""}</li>'
+    steps = "".join(f'<li><h2>{esc(t)}</h2><p>{body}</p></li>'
                     for i, (t, body) in enumerate(GUIDE_STEPS))
     howto = {"@context": "https://schema.org", "@type": "HowTo", "name": f"安裝並使用 {NAME}",
              "step": [{"@type": "HowToStep", "name": t, "position": i + 1} for i, (t, _) in enumerate(GUIDE_STEPS)]}
@@ -260,6 +266,35 @@ def page_guide() -> str:
 <h1>安裝教學</h1>
 <p class="lead">需要 Apple Silicon（M1 以後）的 Mac、macOS 13 以上，以及約 2 GB 的空間（App＋語音辨識模型）。</p>
 <ol class="guide">{steps}</ol>
+
+<h2 id="blocked">第一次打開被擋：三種做法，你選</h2>
+<p><strong>為什麼會被擋</strong>：Apple 要開發者每年付費加入開發者計畫、把 App 送去「公證」，macOS 才會直接放行。{NAME} 目前沒有做這件事，所以用瀏覽器下載的版本會被標成「從網路下載、未經驗證」，第一次打開就被擋下來。
+App 是開源的，程式碼都在 <a href="{REPO}">GitHub</a>；每個安裝檔都附 SHA-256（<a href="{RELEASES}">Releases 頁</a>的 <code>SHA256SUMS.txt</code>），可以自己比對檔案沒被動過。相信這個 App 再用下面任一種做法打開它，不相信就不要裝。</p>
+
+<h3 id="blocked-settings">做法一：系統設定按「仍要打開」（不用終端機）</h3>
+<ol>
+<li>雙擊「{NAME}」。macOS 說「無法打開」時，按<strong>「完成」</strong>（不要按「丟到垃圾桶」）。</li>
+<li>打開「系統設定」→ 左邊選「隱私權與安全性」→ 往下捲到「安全性」。</li>
+<li>會看到「已阻擋『{NAME}』」，按旁邊的<strong>「仍要打開」</strong>（英文介面是 Open Anyway），輸入電腦密碼。</li>
+<li>再跳一次確認視窗時，按<strong>「打開」</strong>。之後雙擊就能直接開。</li>
+</ol>
+<p class="small">「安全性」那裡沒有按鈕：先回去雙擊一次 App 再回來看，按鈕只會在被擋之後的一小時內出現。macOS 14 以前也可以對 App 按右鍵 →「打開」；macOS 15 起 Apple 拿掉了這條捷徑。</p>
+{GATEKEEPER_SVG}
+
+<h3 id="blocked-xattr">做法二：已經裝進「應用程式」了，用一行指令解除</h3>
+<p>打開「終端機」（在「應用程式 → 工具程式」），貼上這行、按 Return：</p>
+<pre>xattr -dr com.apple.quarantine "/Applications/{NAME}.app"</pre>
+<p>這行只做一件事：拿掉 macOS 幫這個 App 貼的「從網路下載」標記。之後雙擊就能開。</p>
+
+<h3 id="blocked-install">做法三：不經過瀏覽器，用一行指令直接安裝</h3>
+<p>還沒下載、或想之後都這樣裝：打開「終端機」，貼上這行、按 Return：</p>
+<pre>curl -fsSL {BASE}/install.sh | bash</pre>
+<p>這支<a href="/install.sh">安裝腳本</a>只做五件事：從 GitHub Releases 下載最新版 dmg 與 <code>SHA256SUMS.txt</code>、比對 SHA-256（不符就停止，什麼都不裝）、把 App 複製到「應用程式」（覆蓋舊版）、卸載並刪掉暫存檔、打開 App。用 curl 下載的檔案不會被標成「從網路下載」，所以不會跳出警告。</p>
+<p>想先看過內容再執行（比較謹慎的做法）：</p>
+<pre>curl -fsSL {BASE}/install.sh -o install.sh
+less install.sh
+bash install.sh</pre>
+<p class="small">只對你信任的網址這樣做。這個做法需要你的帳號能寫入「應用程式」資料夾（一般是管理者帳號）；不是的話請用做法一。</p>
 
 <h2 id="online">錄線上會議（對方的聲音）</h2>
 <p>macOS 預設錄不到電腦播出來的聲音，要先裝免費的 <a href="{BLACKHOLE}">BlackHole 2ch</a> 虛擬音源：</p>
@@ -285,7 +320,7 @@ def page_guide() -> str:
 
 <h2 id="trouble">卡住了？</h2>
 <ul>
-<li><strong>打不開、說「無法打開」或「無法確認開發者」</strong>：照第 2 步到「系統設定 → 隱私權與安全性」按「仍要打開」。那裡沒有按鈕的話，先回去雙擊一次 App 再看。熟悉終端機的話，也可以執行 <code>xattr -dr com.apple.quarantine "/Applications/{NAME}.app"</code> 後再雙擊。</li>
+<li><strong>打不開、說「無法打開」或「無法確認開發者」</strong>：看上面的<a href="#blocked">三種做法</a>。不小心按了「丟到垃圾桶」：到垃圾桶把 App 拖回「應用程式」，或重新下載。</li>
 <li><strong>錄不到聲音</strong>：「系統設定 → 隱私權與安全性 → 麥克風」確認有允許 {NAME}。</li>
 <li><strong>沒錄到對方</strong>：輸出裝置要選多重輸出裝置，錄音來源要選「兩者都錄」。</li>
 <li><strong>摘要按鈕是灰的</strong>：沒偵測到 Claude Code。安裝並登入後重新開啟 App。</li>
@@ -401,6 +436,7 @@ def main() -> None:
         "faq/index.html": page_faq(),
         "site.css": CSS.lstrip(),
         "llms.txt": llms(),
+        "install.sh": INSTALL_SH.read_text(encoding="utf-8"),
         "robots.txt": f"User-agent: *\nAllow: /\n\nSitemap: {BASE}/sitemap.xml\n",
         "sitemap.xml": '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
                        + "".join(f"  <url><loc>{BASE}{p}</loc><lastmod>{DATE}</lastmod></url>\n" for p in ("/", "/guide/", "/faq/"))
