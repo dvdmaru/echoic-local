@@ -33,8 +33,11 @@ a = Analysis(
     ["meeting_local/app.py"],
     pathex=["."],
     binaries=binaries,
-    datas=[("meeting_local/models-catalog.json", "meeting_local")],
-    hiddenimports=["numpy", "soundfile", "sherpa_onnx", "opencc"],
+    datas=[("meeting_local/models-catalog.json", "meeting_local"),
+           ("meeting_local/web/index.html", "meeting_local/web"),
+           ("meeting_local/web/app.css", "meeting_local/web"),
+           ("meeting_local/web/app.js", "meeting_local/web")],
+    hiddenimports=["numpy", "soundfile", "sherpa_onnx", "opencc", "webview", "webview.platforms.cocoa"],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=["scripts/pyi_rth_utf8_locale.py"],  # Finder 啟動沒有 LANG，Tcl 會讀壞中文路徑（見該檔）

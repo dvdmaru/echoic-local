@@ -199,6 +199,15 @@ def cmd_config(args: argparse.Namespace) -> int:
         changes["stt_api_base_url"] = args.api_url.strip().rstrip("/")
     if getattr(args, "api_model", None):
         changes["stt_api_model"] = args.api_model.strip()
+    if getattr(args, "mcp", None):
+        changes["mcp_enabled"] = args.mcp == "on"
+    if getattr(args, "mcp_transcripts", None):
+        changes["mcp_transcripts"] = args.mcp_transcripts == "on"
+    if getattr(args, "categories", None):
+        cats = [c.strip() for c in re.split(r"[,，、]", args.categories) if c.strip()]
+        if not settings._valid("categories", cats):
+            raise ValueError(f"分類欄位要 1～{settings.MAX_CATEGORIES} 個、不能重複：{args.categories}")
+        changes["categories"] = cats
     if changes:
         settings.save(changes)
     if getattr(args, "set_api_key", False):
@@ -222,6 +231,9 @@ def cmd_config(args: argparse.Namespace) -> int:
         print("⚠️ " + stt_api.warning(s["stt_api_base_url"]))
     else:
         print(f"語音辨識：本機 whisper（{SPEED_LABELS[s['local_speed']]}）")
+    print(f"會議分類欄位：{'、'.join(s['categories'])}")
+    scope = "；".join(f"{k}：{'、'.join(v)}" for k, v in s["mcp_scope"].items() if v) or "全部（標成不給 AI 助理的除外）"
+    print(f"AI 助理讀取（MCP）：{'開' if s['mcp_enabled'] else '關'}｜逐字稿：{'給' if s['mcp_transcripts'] else '不給'}｜範圍：{scope}")
     return 0
 
 
@@ -240,6 +252,13 @@ def _refresh_index(job: Path) -> None:
         log(f"📇 索引已更新：{path}")
     except OSError as exc:  # 索引壞了不該讓主流程失敗
         log(f"⚠️ 索引更新失敗（{INDEX_NAME}）：{exc}")
+    try:
+        from .library import refresh_threads
+
+        for path in refresh_threads(job.parent, job):
+            log(f"🧵 專案追蹤已更新：{path}")
+    except (OSError, ValueError) as exc:
+        log(f"⚠️ 專案追蹤更新失敗：{exc}")
 
 
 def cmd_index(args: argparse.Namespace) -> int:
@@ -250,7 +269,120 @@ def cmd_index(args: argparse.Namespace) -> int:
     return 0
 
 
+def _parse_labels(pairs: list[str] | None) -> dict[str, str]:
+    """--label 客戶=A公司 --label 專案=（空＝未分類）"""
+    out: dict[str, str] = {}
+    for p in pairs or []:
+        if "=" not in p:
+            raise ValueError(f"--label 格式是 欄位=值：{p}")
+        k, v = p.split("=", 1)
+        out[k.strip()] = v.strip()
+    return out
+
+
+def _meeting_folder(path: str, out_root: Path) -> Path:
+    p = Path(path).expanduser()
+    if not p.is_dir() and (out_root / path).is_dir():
+        p = out_root / path
+    if not p.is_dir():
+        raise FileNotFoundError(f"找不到會議資料夾：{path}")
+    return p.resolve()
+
+
+def cmd_mcp(args: argparse.Namespace) -> int:
+    from .mcp_server import main as mcp_main
+
+    return mcp_main(Path(args.out).expanduser())
+
+
+def cmd_label(args: argparse.Namespace) -> int:
+    from . import library
+
+    out_root = Path(args.out).expanduser()
+    labels = _parse_labels(args.label)
+    private = True if args.private else (False if args.public else None)
+    for path in args.paths:
+        folder = _meeting_folder(path, out_root)
+        meta = library.write_meta(folder, labels=labels if labels else None, private=private)
+        shown = "、".join(f"{k}＝{v}" for k, v in meta["labels"].items()) or "（未分類）"
+        log(f"🏷️  {folder.name}：{shown}{'｜不給 AI 助理' if meta['private'] else ''}")
+    return 0
+
+
+def cmd_search(args: argparse.Namespace) -> int:
+    from . import library
+
+    ms = library.filter_meetings(library.load_meetings(Path(args.out).expanduser()), _parse_labels(args.label),
+                                 args.date_from, args.date_to)
+    res = library.search(ms, args.query, include_transcript=not args.summary_only)
+    for r in res[: args.limit]:
+        m = r["meeting"]
+        tags = " ".join(f"#{v}" for v in m.labels.values())
+        print(f"\n{m.date} {m.clock}｜{m.title} {tags}\n  {m.folder}")
+        for h in r["hits"]:
+            print(f"  [{h['source']}{' ' + h['timestamp'] if h['timestamp'] else ''}] {h['text']}")
+    log(f"\n🔎 {len(res)} 場符合「{args.query}」" + (f"（列前 {args.limit} 場）" if len(res) > args.limit else ""))
+    return 0
+
+
+def cmd_export(args: argparse.Namespace) -> int:
+    from . import library
+
+    out_root = Path(args.out).expanduser()
+    all_ms = library.load_meetings(out_root)
+    if args.paths:
+        ids = {_meeting_folder(p, out_root).name for p in args.paths}
+        ms = [m for m in all_ms if m.id in ids]
+    else:
+        labels = _parse_labels(args.label)
+        if not labels and not (args.date_from or args.date_to):
+            raise ValueError("要給會議資料夾，或用 --label／--from／--to 選一組會議")
+        ms = library.filter_meetings(all_ms, labels, args.date_from, args.date_to)
+    if not ms:
+        raise ValueError("沒有符合的會議")
+    if len(ms) == 1:
+        title, date = ms[0].title, ms[0].date
+    else:
+        title = args.title or (library.thread_key(_parse_labels(args.label)) or "會議彙整") + " 會議彙整"
+        date = time.strftime("%Y-%m-%d")
+    dest = Path(args.to).expanduser() if args.to else Path.home() / "Downloads"
+    if dest.is_dir() or not dest.suffix:
+        dest = dest / library.export_name(title, date, args.format)
+    include_tr = args.transcript if args.transcript is not None else len(ms) == 1
+    library.export(dest, title, ms, fmt=args.format, include_transcript=include_tr)
+    log(f"📤 已匯出 {len(ms)} 場 → {dest}")
+    return 0
+
+
+def cmd_thread(args: argparse.Namespace) -> int:
+    from . import library
+
+    out_root = Path(args.out).expanduser()
+    labels = _parse_labels(args.label)
+    if not labels:
+        raise ValueError("至少給一個 --label，例如 --label 客戶=A公司 --label 專案=官網改版")
+    ms = library.filter_meetings(library.load_meetings(out_root), labels)
+    if not ms:
+        raise ValueError(f"沒有符合 {library.thread_key(labels)} 的會議")
+    report, meta = None, ""
+    if args.ai:
+        if not config.claude_available():
+            raise RuntimeError("找不到 claude CLI，無法請 Claude 整理")
+        log(f"🧠 請 Claude 讀 {len(ms)} 場摘要整理進度（會用到你 Claude 方案的額度）…")
+        report = library.project_report(labels, ms, model=args.model)
+        meta = f"Claude 整理：{time.strftime('%Y-%m-%d %H:%M')}，讀了 {sum(1 for m in ms if m.summary_path.exists())} 場摘要"
+    path = library.write_thread(out_root, labels, ms, ai_report=report, ai_meta=meta)
+    log(f"🧵 專案追蹤已更新：{path}")
+    return 0
+
+
 def cmd_ui(args: argparse.Namespace) -> int:
+    from . import webapp
+
+    if not getattr(args, "classic", False) and webapp.available():
+        return webapp.main(Path(args.out).expanduser())
+    if not getattr(args, "classic", False):
+        log("ℹ️ 沒裝 pywebview，開舊版視窗（uv pip install pywebview 後就是新介面）")
     from .ui import main as ui_main
 
     return ui_main(Path(args.out))
@@ -300,7 +432,12 @@ def cmd_transcribe(args: argparse.Namespace) -> Path:
     engine = stt_engine(args)
     t0 = time.time()
     if engine == "api":
-        segments, stt_info = _stt_api(job, model_wav, prompt)
+        # 線上服務只送詞彙表的專有名詞，不送「請以繁體中文逐字記錄」這種指令句：2026-11-17 實測 OpenAI whisper-1
+        # 在喇叭外放、收音偏遠的 47 秒錄音上把那句指令回吐三次、真正的話一句都沒有；不帶提示就整段轉對。
+        # 繁體本來就由後面的 OpenCC 轉，指令句對線上服務沒有幫助。本機 whisper 不受影響，照舊帶完整提示。
+        api_prompt = glossary.whisper_prompt("", terms, config.WHISPER_PROMPT_MAX_CHARS) or None
+        segments, stt_info = _stt_api(job, model_wav, api_prompt)
+        prompt = api_prompt or ""
     else:
         segments, stt_info = _stt_local(job, model_wav, prompt, args)
     whisper_sec = time.time() - t0
@@ -366,7 +503,7 @@ def _stt_local(job: Path, model_wav: Path, prompt: str, args: argparse.Namespace
     return segments, info
 
 
-def _stt_api(job: Path, model_wav: Path, prompt: str):
+def _stt_api(job: Path, model_wav: Path, prompt: str | None):
     """使用者自選的線上 API：上傳錄音，回來的段落跟本機路線走同一條後處理。"""
     from . import stt_api
 
@@ -498,6 +635,17 @@ def cmd_entities(args: argparse.Namespace) -> Path:
     return job
 
 
+NOTES_NAME = "notes.md"
+
+
+def _read_notes(job: Path) -> str | None:
+    """會議中的手記（網頁介面錄音時寫的 notes.md）；沒有就 None。"""
+    try:
+        return (job / NOTES_NAME).read_text(encoding="utf-8")
+    except (FileNotFoundError, OSError):
+        return None
+
+
 def cmd_summarize(args: argparse.Namespace) -> Path:
     from .summarize import build_summary, safe_title
 
@@ -520,7 +668,8 @@ def cmd_summarize(args: argparse.Namespace) -> Path:
     attendees = parse_attendees(getattr(args, "attendees", None)) or list(prev.get("attendees") or [])
     gl = glossary.markdown_block(glossary.load(config.GLOSSARY))
     md, title = build_summary(by_minute_path.read_text(encoding="utf-8"), entities_md, source=job.name,
-                              model=args.model, meeting_time=meeting_time, attendees=attendees, glossary_md=gl)
+                              model=args.model, meeting_time=meeting_time, attendees=attendees, glossary_md=gl,
+                              notes_md=_read_notes(job))
     (job / "summary.md").write_text(md, encoding="utf-8")
     update_run_json(job / "run.json", title=title, attendees=attendees or None,
                     summary={"model": f"claude CLI ({args.model or 'default'})", "bytes": len(md.encode("utf-8"))})
@@ -626,8 +775,52 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--out", default=str(config.OUT_ROOT), help=f"vault 根目錄（預設 {config.OUT_ROOT}）")
     sp.set_defaults(func=cmd_index)
 
-    sp = sub.add_parser("ui", help="開視窗：開始／停止／波形／一鍵轉逐字稿")
+    def common_filter(sp: argparse.ArgumentParser) -> None:
+        sp.add_argument("--label", action="append", metavar="欄位=值", help="分類篩選，可重複（值留空＝未分類）")
+        sp.add_argument("--from", dest="date_from", metavar="YYYY-MM-DD")
+        sp.add_argument("--to-date", dest="date_to", metavar="YYYY-MM-DD")
+        sp.add_argument("--out", default=str(config.OUT_ROOT), help=f"會議根目錄（預設 {config.OUT_ROOT}）")
+
+    sp = sub.add_parser("mcp", help="MCP 伺服器（stdio）：讓你授權的 AI 助理讀會議；要先在 App 或 config --mcp on 打開")
+    sp.add_argument("--out", default=str(config.OUT_ROOT), help=f"會議根目錄（預設 {config.OUT_ROOT}）")
+    sp.set_defaults(func=cmd_mcp)
+
+    sp = sub.add_parser("label", help="替會議設定分類（例：--label 客戶=A公司 --label 專案=官網改版）")
+    sp.add_argument("paths", nargs="+", help="會議資料夾（可只給資料夾名稱）")
+    sp.add_argument("--label", action="append", metavar="欄位=值", help="可重複；值留空＝清掉該欄位")
+    g = sp.add_mutually_exclusive_group()
+    g.add_argument("--private", action="store_true", help="這場不給 AI 助理讀")
+    g.add_argument("--public", action="store_true", help="取消「不給 AI 助理讀」")
+    sp.add_argument("--out", default=str(config.OUT_ROOT), help=f"會議根目錄（預設 {config.OUT_ROOT}）")
+    sp.set_defaults(func=cmd_label)
+
+    sp = sub.add_parser("search", help="關鍵字搜尋摘要與逐字稿（多個詞空白分隔＝都要出現）")
+    sp.add_argument("query")
+    sp.add_argument("--summary-only", action="store_true", help="只搜摘要")
+    sp.add_argument("--limit", type=int, default=20)
+    common_filter(sp)
+    sp.set_defaults(func=cmd_search)
+
+    sp = sub.add_parser("export", help="匯出成 Markdown／HTML：給會議資料夾，或用 --label 匯出一整組")
+    sp.add_argument("paths", nargs="*", help="會議資料夾（不給就用 --label／--from 選）")
+    sp.add_argument("--format", choices=("md", "html"), default="md")
+    sp.add_argument("--to", help="輸出檔或資料夾（預設 ~/Downloads）")
+    sp.add_argument("--title", help="多場彙整的標題")
+    g = sp.add_mutually_exclusive_group()
+    g.add_argument("--transcript", dest="transcript", action="store_true", default=None, help="附逐字稿（單場預設附）")
+    g.add_argument("--no-transcript", dest="transcript", action="store_false", help="不附逐字稿（多場預設不附）")
+    common_filter(sp)
+    sp.set_defaults(func=cmd_export)
+
+    sp = sub.add_parser("thread", help="專案追蹤：同客戶／專案的時間線＋跨會議待辦，寫到 _專案追蹤/")
+    sp.add_argument("--ai", action="store_true", help="另請 Claude 讀各場摘要整理進度、前後不一致、下次要追的事（用你的 Claude 額度）")
+    sp.add_argument("--model", default=config.CLAUDE_MODEL)
+    common_filter(sp)
+    sp.set_defaults(func=cmd_thread)
+
+    sp = sub.add_parser("ui", help="開視窗：會議庫＋錄音（--classic＝舊版 tkinter 視窗）")
     sp.add_argument("--out", default=str(config.OUT_ROOT), help=f"輸出根目錄（預設 {config.OUT_ROOT}）")
+    sp.add_argument("--classic", action="store_true", help="開舊版 tkinter 視窗")
     sp.set_defaults(func=cmd_ui)
 
     sp = sub.add_parser("record", help="錄音")
@@ -671,6 +864,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--api-model", help="線上 API 模型（例 whisper-1、whisper-large-v3）")
     sp.add_argument("--set-api-key", action="store_true", help="輸入線上 API key（不顯示；存成只有自己讀得到的檔）")
     sp.add_argument("--clear-api-key", action="store_true", help="刪掉存著的線上 API key")
+    sp.add_argument("--mcp", choices=("on", "off"), help="讓你授權的 AI 助理透過 MCP 讀會議（只讀）")
+    sp.add_argument("--mcp-transcripts", choices=("on", "off"), help="AI 助理可不可以讀逐字稿（off＝只給摘要）")
+    sp.add_argument("--categories", help="會議分類欄位，逗號分隔（預設：客戶,專案）")
     sp.set_defaults(func=cmd_config)
     return p
 

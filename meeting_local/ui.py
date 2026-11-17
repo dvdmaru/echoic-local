@@ -18,7 +18,7 @@ from collections import deque
 from pathlib import Path
 from tkinter import messagebox, ttk
 
-from . import __version__, config, settings, updater
+from . import __version__, config, library, settings, updater
 from .audio import build_record_cmd, describe_devices, input_volume_note, list_audio_devices, pick_blackhole, pick_microphone, probe
 from .outputs import update_run_json
 from .summarize import safe_title
@@ -68,7 +68,7 @@ class RecorderUI:
         self._peak_db = -90.0
 
         root.title(f"{config.APP_NAME} {__version__}")
-        root.geometry("780x640")
+        root.geometry("780x680")
         root.minsize(640, 520)
 
         frm = ttk.Frame(root, padding=12)
@@ -103,6 +103,22 @@ class RecorderUI:
         ttk.Entry(name_row, textvariable=self.name_var, width=28).pack(side="left", padx=(4, 8))
         self.btn_new = ttk.Button(name_row, text="＋ 新會議", command=self.new_meeting)
         self.btn_new.pack(side="left")
+
+        # 分類（選填，例如客戶／專案）：存在這場的 meta.json，會議庫用來篩選、串成專案追蹤
+        cat_row = ttk.Frame(frm)
+        cat_row.pack(fill="x", pady=(0, 6))
+        self.cat_vars: dict[str, tk.StringVar] = {}
+        self.cat_boxes: dict[str, ttk.Combobox] = {}
+        for cat in settings.load()["categories"]:
+            ttk.Label(cat_row, text=f"{cat}：").pack(side="left")
+            var = tk.StringVar()
+            box = ttk.Combobox(cat_row, textvariable=var, width=14)
+            box.pack(side="left", padx=(0, 10))
+            self.cat_vars[cat] = var
+            self.cat_boxes[cat] = box
+        ttk.Label(cat_row, text="（選填，可打新的）", foreground="#777").pack(side="left")
+        ttk.Button(cat_row, text="會議庫…", command=self.open_library).pack(side="right")
+        self._refresh_category_choices()
 
         # 與會者（選填）：填了就照人數做說話人分離，摘要依內容推定誰說的
         att_row = ttk.Frame(frm)
@@ -257,6 +273,32 @@ class RecorderUI:
             self.set_status("❌ 模型下載失敗。請檢查網路後重試。")
             self.say("❌ " + detail)
 
+    def _refresh_category_choices(self) -> None:
+        try:
+            values = library.label_values(library.load_meetings(self.out_root), list(self.cat_vars))
+        except OSError:
+            return
+        for cat, box in self.cat_boxes.items():
+            box.configure(values=list(values.get(cat, {}).keys()))
+
+    def _save_labels(self) -> None:
+        """把分類欄位寫進這場的 meta.json（留空的欄位不寫）。"""
+        if not self.job or not self.job.is_dir():
+            return
+        labels = {k: v.get().strip() for k, v in self.cat_vars.items() if v.get().strip()}
+        if not labels and not (self.job / library.META_NAME).exists():
+            return
+        try:
+            library.write_meta(self.job, labels={k: v.get().strip() for k, v in self.cat_vars.items()})
+        except OSError as exc:
+            self.say(f"⚠️ 分類沒存起來：{exc}")
+
+    def open_library(self) -> None:
+        from .library_ui import LibraryWindow
+
+        self._save_labels()
+        LibraryWindow(self.root, self.out_root)
+
     def new_meeting(self) -> None:
         """清掉上一場的狀態，準備錄下一場（錄音中不可按）。"""
         if self.proc is not None or self.busy:
@@ -266,6 +308,9 @@ class RecorderUI:
         self.started_at = None
         self.name_var.set("")
         self.attendees_var.set("")
+        for var in self.cat_vars.values():
+            var.set("")
+        self._refresh_category_choices()
         self.lbl_time.configure(text="00:00:00")
         self.lbl_db.configure(text="－ dB", foreground="black")
         self.log.configure(state="normal")
@@ -296,6 +341,7 @@ class RecorderUI:
         if note:
             self.say(note)
         self._rec_info = info
+        self._save_labels()
         # ffmpeg 的 stderr 寫到工作資料夾的 ffmpeg.log：出事看得到，也不會塞管線。第一行記裝置，事後查得到用哪支麥克風。
         self._ffmpeg_log = open(self.job / "ffmpeg.log", "ab", buffering=0)
         self._ffmpeg_log.write(
@@ -394,6 +440,7 @@ class RecorderUI:
                     self.say(f"run.json 寫入失敗：{exc}")
             except RuntimeError as exc:
                 self.set_status(f"錄音檔存了但 ffprobe 讀不到：{exc}")
+            self._save_labels()
             self.btn_all.configure(state="normal")
             self.btn_open.configure(state="normal")
         else:
@@ -634,6 +681,7 @@ class RecorderUI:
     def run_all(self) -> None:
         if self.job is None or self.busy:
             return
+        self._save_labels()  # 停止後才填的分類也要存，管線跑完會更新專案追蹤
         want = bool(self.auto_summary_var.get())
         self._set_busy(True)
         self.set_status("⏳ 轉逐字稿＋說話人分離" + ("＋專名表＋摘要" if want else "") + "…（下面會印進度；建議先關 Chrome）")
@@ -644,6 +692,7 @@ class RecorderUI:
     def run_summary(self) -> None:
         if self.job is None or self.busy or not self._has_transcript():
             return
+        self._save_labels()
         self._set_busy(True)
         self.set_status("⏳ 用 Claude 產生專名表與摘要…")
         self._run_cli(["summarize", str(self.job), *self._common_argv()])

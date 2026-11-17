@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Echoic 本機版｜會議錄音，在自己的 Mac 上變成逐字稿</title>
-<meta name="description" content="Echoic 本機版是免費開源的會議逐字稿工具：在自己的 Mac 上把會議錄音轉成台灣正體逐字稿，分好誰在說話、每段有時間戳，預設錄音不上傳。想要摘要，再用你自己登入的 Claude 產生。目前支援 Apple Silicon Mac。">
+<meta name="description" content="Echoic 本機版是免費開源的會議逐字稿工具：在自己的 Mac 上把會議錄音轉成台灣正體逐字稿，分好誰在說話、每段有時間戳，預設錄音不上傳。會議按客戶、專案整理，同一個專案的進度和待辦自動串起來，可以搜尋、匯出。想要摘要，再用你自己登入的 Claude 產生。目前支援 Apple Silicon Mac。">
 <link rel="canonical" href="https://echoic.twtools.cc/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Echoic 本機版">
 <meta property="og:title" content="Echoic 本機版｜會議錄音，在自己的 Mac 上變成逐字稿">
-<meta property="og:description" content="Echoic 本機版是免費開源的會議逐字稿工具：在自己的 Mac 上把會議錄音轉成台灣正體逐字稿，分好誰在說話、每段有時間戳，預設錄音不上傳。想要摘要，再用你自己登入的 Claude 產生。目前支援 Apple Silicon Mac。">
+<meta property="og:description" content="Echoic 本機版是免費開源的會議逐字稿工具：在自己的 Mac 上把會議錄音轉成台灣正體逐字稿，分好誰在說話、每段有時間戳，預設錄音不上傳。會議按客戶、專案整理，同一個專案的進度和待辦自動串起來，可以搜尋、匯出。想要摘要，再用你自己登入的 Claude 產生。目前支援 Apple Silicon Mac。">
 <meta property="og:url" content="https://echoic.twtools.cc/">
 <meta property="og:image" content="https://echoic.twtools.cc/img/og.png">
 <meta property="og:image:width" content="1200">
@@ -29,7 +29,7 @@ gtag('js',new Date());gtag('config','G-80DLMF08HF');
 document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[data-dl]');
 if(a)gtag('event','echoic_local_download',{platform:a.getAttribute('data-dl')});});
 </script>
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Echoic 本機版", "alternateName": "Echoic Local", "description": "Echoic 本機版是免費開源的會議逐字稿工具：在自己的 Mac 上把會議錄音轉成台灣正體逐字稿，分好誰在說話、每段有時間戳，預設錄音不上傳。想要摘要，再用你自己登入的 Claude 產生。目前支援 Apple Silicon Mac。", "applicationCategory": "BusinessApplication", "operatingSystem": "macOS 13+ (Apple Silicon)", "softwareVersion": "0.5.0", "inLanguage": "zh-TW", "isAccessibleForFree": true, "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "TWD"}, "url": "https://echoic.twtools.cc/", "downloadUrl": "https://github.com/dvdmaru/echoic-local/releases/latest", "codeRepository": "https://github.com/dvdmaru/echoic-local"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Echoic 本機版", "alternateName": "Echoic Local", "description": "Echoic 本機版是免費開源的會議逐字稿工具：在自己的 Mac 上把會議錄音轉成台灣正體逐字稿，分好誰在說話、每段有時間戳，預設錄音不上傳。會議按客戶、專案整理，同一個專案的進度和待辦自動串起來，可以搜尋、匯出。想要摘要，再用你自己登入的 Claude 產生。目前支援 Apple Silicon Mac。", "applicationCategory": "BusinessApplication", "operatingSystem": "macOS 13+ (Apple Silicon)", "softwareVersion": "0.7.0", "inLanguage": "zh-TW", "isAccessibleForFree": true, "license": "https://opensource.org/licenses/MIT", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "TWD"}, "url": "https://echoic.twtools.cc/", "downloadUrl": "https://github.com/dvdmaru/echoic-local/releases/latest", "codeRepository": "https://github.com/dvdmaru/echoic-local"}</script>
 </head>
 <body>
 <header class="top"><div class="wrap bar">
@@ -41,29 +41,23 @@ if(a)gtag('event','echoic_local_download',{platform:a.getAttribute('data-dl')});
 <div>
 <p class="eyebrow">免費開源・Mac・會後逐字稿</p>
 <h1>會議錄音，<br>在自己的 Mac 上<br><span class="hl">變成逐字稿</span>。</h1>
-<p class="lead">分好誰在說話、每段都有時間戳、一律台灣正體。錄音預設不上傳。想要摘要，再用你自己的 Claude。</p>
+<p class="lead">分好誰在說話、每段都有時間戳、一律台灣正體。會議按客戶、專案整理，同一個專案的進度和待辦自動串起來。錄音預設不上傳；想要摘要，再用你自己的 Claude。</p>
 <div class="cta"><a class="btn" href="https://github.com/dvdmaru/echoic-local/releases/latest/download/EchoicLocal-mac-arm64.dmg" data-dl="mac">下載 Mac 版<small>Apple Silicon・macOS 13 以上・免費</small></a><a class="btn ghost" href="/guide/">先看安裝教學</a></div>
 <p class="note">錄音前，請先取得與會者同意。</p>
 </div>
-<div class="demo" aria-label="逐字稿畫面示意">
-<div class="demo-bar"><span></span><span></span><span></span><b>transcript-by-minute.txt</b></div>
-<div class="demo-body">
-<p><time>[00:03]</time><em class="s0">SPEAKER_00</em>那我們先看上週的數字，轉換率有比較好。</p>
-<p><time>[00:04]</time><em class="s1">SPEAKER_01</em>對，改版之後大概多了兩成，但客服量也變多。</p>
-<p><time>[00:05]</time><em class="s0">SPEAKER_00</em>好，那客服這塊下週三前給我一個方案。</p>
-<p><time>[00:06]</time><em class="s1">SPEAKER_01</em>沒問題，我週三中午前寄給你。</p>
-</div>
-<p class="demo-cap">示意畫面（虛構對話）</p>
-</div>
+<figure class="demo shot">
+<img src="/img/app.jpg" width="1400" height="866" alt="Echoic 本機版的畫面：左邊是客戶與專案的資料夾樹，中間是一場會議的摘要（決議、待辦、數字表，每條附時間戳），右邊是同一個專案的其他場、前後不一致與還沒做完的待辦">
+<figcaption class="demo-cap">0.7.0 畫面（虛構資料）</figcaption>
+</figure>
 </div></section>
 
-<section class="wrap"><h2 class="sec">它會幫你做什麼</h2><ul class="cards"><li class="card"><span class="emo" aria-hidden="true">🔒</span><h3>錄音預設不出你的電腦</h3><p>語音辨識和說話人分離預設都在本機跑，沒有帳號、沒有月費。想讓電腦少做一點，也可以自己選線上語音辨識（會上傳錄音）。</p></li><li class="card"><span class="emo" aria-hidden="true">🗣️</span><h3>分好誰在說話</h3><p>自動分出 SPEAKER_00、01…；填了與會者，還會照人數分，摘要直接用人名。</p></li><li class="card"><span class="emo" aria-hidden="true">🇹🇼</span><h3>台灣正體＋詞彙表</h3><p>輸出一律台灣正體。公司名、產品名常寫錯？收進詞彙表一次，之後每場自動修。</p></li><li class="card"><span class="emo" aria-hidden="true">⏱️</span><h3>每段都有時間戳</h3><p>逐字稿、決議、待辦都附時間，想確認就回去聽原音。</p></li><li class="card"><span class="emo" aria-hidden="true">✨</span><h3>摘要是選用的</h3><p>要摘要，再用你自己登入的 Claude 產生；預設關，不會偷偷用掉你的額度。</p></li><li class="card"><span class="emo" aria-hidden="true">🤝</span><h3>和看懂共用模型</h3><p>裝過看懂 KanDong 的人，通常不用再下載 1.6 GB 的語音辨識模型。</p></li></ul></section>
+<section class="wrap"><h2 class="sec">它會幫你做什麼</h2><ul class="cards"><li class="card"><span class="emo" aria-hidden="true">🔒</span><h3>錄音預設不出你的電腦</h3><p>語音辨識和說話人分離預設都在本機跑，沒有帳號、沒有月費。想讓電腦少做一點，也可以自己選線上語音辨識（會上傳錄音）。</p></li><li class="card"><span class="emo" aria-hidden="true">🗣️</span><h3>分好誰在說話</h3><p>自動分出 SPEAKER_00、01…；填了與會者，還會照人數分，摘要直接用人名。</p></li><li class="card"><span class="emo" aria-hidden="true">🇹🇼</span><h3>台灣正體＋詞彙表</h3><p>輸出一律台灣正體。公司名、產品名常寫錯？收進詞彙表一次，之後每場自動修。</p></li><li class="card"><span class="emo" aria-hidden="true">⏱️</span><h3>每段都有時間戳</h3><p>逐字稿、決議、待辦都附時間，想確認就回去聽原音。</p></li><li class="card"><span class="emo" aria-hidden="true">✨</span><h3>摘要是選用的</h3><p>要摘要，再用你自己登入的 Claude 產生；預設關，不會偷偷用掉你的額度。</p></li><li class="card"><span class="emo" aria-hidden="true">📁</span><h3>按客戶、專案整理</h3><p>左側欄就是「客戶 › 專案」的資料夾樹。同一個專案的會議自動串成時間線，待辦跨場彙整，前後講法不一樣也看得到。</p></li><li class="card"><span class="emo" aria-hidden="true">🔎</span><h3>搜尋、匯出</h3><p>⌘K 搜全部會議的摘要與逐字稿；選好的會議匯出成 Markdown 或單一 HTML 檔，直接寄給別人。</p></li><li class="card"><span class="emo" aria-hidden="true">🤖</span><h3>讓你的 AI 助理讀（選用）</h3><p>支援 MCP：Claude Desktop、Claude Code 可以查你的會議記錄。預設關、只能讀，可以只開放某些客戶。</p></li><li class="card"><span class="emo" aria-hidden="true">🤝</span><h3>和看懂共用模型</h3><p>裝過看懂 KanDong 的人，通常不用再下載 1.6 GB 的語音辨識模型。</p></li></ul></section>
 
 <section class="wrap steps-wrap"><h2 class="sec">三步驟</h2>
 <ol class="steps">
 <li><b>錄</b><span>選「只錄麥克風」或「兩者都錄」，按開始。</span></li>
 <li><b>轉</b><span>按「轉逐字稿」，等語音辨識和說話人分離跑完。</span></li>
-<li><b>看</b><span>打開資料夾：逐字稿、說話人、（選用）摘要都在裡面，也能直接當 Obsidian 筆記庫。</span></li>
+<li><b>看</b><span>轉完直接在 App 裡看：摘要、逐字稿，時間戳點了就播原音；同一個客戶、專案的會議自動串起來。資料夾也能直接當 Obsidian 筆記庫。</span></li>
 </ol>
 <p class="small">M4 MacBook Air 實測：語音辨識每小時錄音多半 4～6 分鐘，說話人分離另外約 7 分鐘；轉的時候照常能用電腦。</p>
 </section>
@@ -76,9 +70,9 @@ if(a)gtag('event','echoic_local_download',{platform:a.getAttribute('data-dl')});
 <li>App 沒有付費的 Apple 公證：用瀏覽器下載的版本第一次打開會被 macOS 擋下來，要多做一步（<a href="/guide/#blocked">三種做法，你選</a>）。</li>
 </ul></section>
 
-<section class="wrap"><h2 class="sec">常見問題</h2><div class="faq"><details><summary>要錢嗎？</summary><p>不用。Echoic 本機版是 MIT 授權的開源軟體，語音辨識與說話人分離預設都在你的電腦上執行，沒有月費。摘要是選用功能，用的是你自己的 Claude 方案；自己選用線上語音辨識時，費用依你選的服務計。</p></details><details><summary>錄音會被上傳嗎？</summary><p>預設不會。錄音、逐字稿都只存在你的電腦（預設在「下載項目」的 meetings 資料夾）。只有你打開摘要功能時，逐字稿文字才會送進你自己登入的 Claude Code。0.4.0 起可以自己選線上語音辨識，選了就會把錄音上傳到你填的服務，App 會先提醒你；沒選就一律不送。下載軟體與模型仍需要網路；安裝版每天最多向 GitHub 查一次有沒有新版（不含任何會議內容），App 右下角取消「自動」就不會查。</p></details><details><summary>摘要會吃掉我的 Claude 額度嗎？</summary><p>會，所以預設關。一小時的會議大約送出 4～5 萬字、拿回約 1 萬字（專名候選表與摘要各一次）。用 Pro（每月 US$20）方案時，一天做好幾場長會議可能比較快碰到用量上限。你可以只出逐字稿，想要哪一場的摘要再單獨按一次。</p></details><details><summary>沒有 Claude 可以用嗎？</summary><p>可以。沒裝 Claude Code 時只會產出逐字稿、說話人與時間戳，其他功能都一樣。</p></details></div><p><a href="/faq/">看全部常見問題 →</a></p></section>
+<section class="wrap"><h2 class="sec">常見問題</h2><div class="faq"><details><summary>要錢嗎？</summary><p>不用。Echoic 本機版是 MIT 授權的開源軟體，語音辨識與說話人分離預設都在你的電腦上執行，沒有月費。摘要是選用功能，用的是你自己的 Claude 方案；自己選用線上語音辨識時，費用依你選的服務計。</p></details><details><summary>錄音會被上傳嗎？</summary><p>預設不會。錄音、逐字稿都只存在你的電腦（預設在「下載項目」的 meetings 資料夾）。只有你打開摘要功能時，逐字稿文字才會送進你自己登入的 Claude Code。0.4.0 起可以自己選線上語音辨識，選了就會把錄音上傳到你填的服務，App 會先提醒你；沒選就一律不送。下載軟體與模型仍需要網路；安裝版每天最多向 GitHub 查一次有沒有新版（不含任何會議內容），在「設定 › 更新」取消自動檢查就不會查。0.6.0 起可以讓你自己的 AI 助理讀會議記錄，也是預設關、要你自己打開。</p></details><details><summary>摘要會吃掉我的 Claude 額度嗎？</summary><p>會，所以預設關。一小時的會議大約送出 4～5 萬字、拿回約 1 萬字（專名候選表與摘要各一次）。用 Pro（每月 US$20）方案時，一天做好幾場長會議可能比較快碰到用量上限。你可以只出逐字稿，想要哪一場的摘要再單獨按一次。</p></details><details><summary>沒有 Claude 可以用嗎？</summary><p>可以。沒裝 Claude Code 時只會產出逐字稿、說話人與時間戳，其他功能都一樣。</p></details></div><p><a href="/faq/">看全部常見問題 →</a></p></section>
 
-<section class="wrap final"><a class="btn" href="https://github.com/dvdmaru/echoic-local/releases/latest/download/EchoicLocal-mac-arm64.dmg" data-dl="mac">下載 Mac 版<small>Apple Silicon・macOS 13 以上・免費</small></a><p class="small">原始碼與授權：<a href="https://github.com/dvdmaru/echoic-local">GitHub</a>。版本 0.5.0。</p></section>
+<section class="wrap final"><a class="btn" href="https://github.com/dvdmaru/echoic-local/releases/latest/download/EchoicLocal-mac-arm64.dmg" data-dl="mac">下載 Mac 版<small>Apple Silicon・macOS 13 以上・免費</small></a><p class="small">原始碼與授權：<a href="https://github.com/dvdmaru/echoic-local">GitHub</a>。版本 0.7.0。</p></section>
 </main>
 <footer class="foot"><div class="wrap">
 <p><strong>Echoic 本機版</strong>：免費開源（MIT）的會議逐字稿工具。語音辨識使用 whisper.cpp、說話人分離使用 sherpa-onnx，都在你的電腦上執行。</p>

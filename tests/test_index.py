@@ -39,7 +39,7 @@ def test_scan_and_render(tmp_path):
     path = write_index(tmp_path)
     text = path.read_text(encoding="utf-8")
     assert path.name == INDEX_NAME
-    assert "| 2026-09-14 | 14:20 | 美日聯手撐日元 | 15:54 | 1 | 1 | 摘要完成 |" in text
+    assert "| 2026-09-14 | 14:20 | 美日聯手撐日元 | – | 15:54 | 1 | 1 | 摘要完成 |" in text
     assert "[[2026-09-14-1420-美日聯手撐日元/summary\\|摘要]]" in text
     assert "- [ ] 追蹤日圓｜負責人：A｜[00:01:00] ｜ [[2026-09-14-1420-美日聯手撐日元/summary\\|2026-09-14 美日聯手撐日元]]" in text
     assert "已完成的" not in text.split("## 未完成待辦")[1]

@@ -143,12 +143,16 @@ def safe_title(title: str, max_len: int = 24) -> str:
 
 
 def build_summary_input(by_minute: str, entities_md: str, attendees: list[str] | None = None,
-                        glossary_md: str | None = None) -> str:
+                        glossary_md: str | None = None, notes_md: str | None = None) -> str:
     parts = []
     if attendees:
         parts.append("## 與會者\n\n" + "、".join(attendees))
     if glossary_md:
         parts.append("## 已確認詞彙表\n\n" + glossary_md)
+    if notes_md and notes_md.strip():
+        parts.append("## 使用者會議中的手記（[HH:MM:SS] 是錄音時間；這是使用者自己記的重點，"
+                     "決議與待辦以逐字稿為準，但手記提到的事要涵蓋到；手記與逐字稿矛盾時寫進品質註記）\n\n"
+                     + notes_md.strip())
     parts.append(f"## 專名確認表\n\n{entities_md}")
     parts.append(f"## 逐字稿（逐分鐘）\n\n{by_minute}")
     return "\n\n".join(parts)
@@ -156,9 +160,9 @@ def build_summary_input(by_minute: str, entities_md: str, attendees: list[str] |
 
 def build_summary(by_minute: str, entities_md: str, source: str, model: str | None = None,
                   meeting_time: str | None = None, attendees: list[str] | None = None,
-                  glossary_md: str | None = None) -> tuple[str, str]:
+                  glossary_md: str | None = None, notes_md: str | None = None) -> tuple[str, str]:
     """回 (summary.md 內容, 模型決定的標題)。第一行標題會加上會議時間戳。"""
-    user = build_summary_input(by_minute, entities_md, attendees, glossary_md)
+    user = build_summary_input(by_minute, entities_md, attendees, glossary_md, notes_md)
     reply = _claude(SUMMARY_SYSTEM, user, model=model).strip()
     m = _TITLE_RE.search(reply)
     if m and reply.lstrip().startswith("#"):

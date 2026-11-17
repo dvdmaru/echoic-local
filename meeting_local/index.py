@@ -93,9 +93,11 @@ def render(rows: list[MeetingRow], out_root: Path) -> str:
         "",
         f"最後更新：{time.strftime('%Y-%m-%d %H:%M')}｜共 {len(rows)} 場｜本檔由 `meeting-local index` 自動產生，手改會被覆蓋；筆記請寫在各場的 summary.md 或另開檔案。",
         "",
-        "| 日期 | 時間 | 標題 | 時長 | 說話人 | 待辦 | 狀態 | 檔案 |",
-        "|---|---|---|---|---|---|---|---|",
+        "| 日期 | 時間 | 標題 | 分類 | 時長 | 說話人 | 待辦 | 狀態 | 檔案 |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
+    from .library import THREADS_DIR, existing_threads, read_meta, thread_key, thread_slug
+
     for r in rows:
         links = []
         if (r.folder / "summary.md").exists():
@@ -106,10 +108,15 @@ def render(rows: list[MeetingRow], out_root: Path) -> str:
             links.append(f"[[{r.name}/entities\\|專名]]")
         open_todos = len(r.todos)
         title = r.title.replace("|", "｜")
+        labels = "／".join(read_meta(r.folder)["labels"].values()).replace("|", "｜") or "–"
         lines.append(
-            f"| {r.date} | {r.clock} | {title} | {_fmt_min(r.duration_min)} | "
+            f"| {r.date} | {r.clock} | {title} | {labels} | {_fmt_min(r.duration_min)} | "
             f"{r.speakers if r.speakers is not None else '–'} | {open_todos or '–'} | {r.stage} | {' '.join(links) or '–'} |"
         )
+    threads = existing_threads(out_root)
+    if threads:
+        lines += ["", "## 專案追蹤（同客戶／專案的時間線與待辦）", ""]
+        lines += [f"- [[{THREADS_DIR}/{thread_slug(lb)}\\|{thread_key(lb)}]]" for lb in threads]
     todo_rows = [(r, t) for r in rows for t in r.todos]
     lines += ["", "## 未完成待辦（所有會議）", ""]
     if todo_rows:

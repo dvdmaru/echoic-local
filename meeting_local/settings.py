@@ -25,7 +25,15 @@ DEFAULTS = {
     "local_speed": "fast",
     "update_check": True,       # 安裝版每天最多查一次 GitHub 有沒有新版（只連 GitHub、不送會議內容）
     "update_checked_at": 0.0,
+    # 會議庫的分類欄位（使用者自訂；會議時間不用分類，直接用日期）
+    "categories": ["客戶", "專案"],
+    # 讓其他 AI 助理（Claude Desktop／Claude Code 等）透過 MCP 讀會議。預設關；只讀、不改任何檔。
+    "mcp_enabled": False,
+    "mcp_transcripts": True,     # 關掉＝只給摘要，不給逐字稿
+    "mcp_scope": {},             # {"客戶": ["A 公司", "B 公司"]}＝只開放這些；空＝全部（仍排除標成「不給 AI 助理」的會議）
 }
+
+MAX_CATEGORIES = 6
 
 # 給 UI 與 README 共用的說明。數字來源：2026-09～10 實際 26 場會議，一小時逐字稿中位數約 2 萬字，
 # 專名表與摘要各送一次（約 2 萬字＋2.5 萬字），回覆合計約 1 萬字。
@@ -38,7 +46,14 @@ SUMMARY_COST_NOTE = (
 
 
 def _valid(key: str, value) -> bool:
-    if key in ("auto_summary", "update_check"):
+    if key == "categories":
+        return (isinstance(value, list) and 0 < len(value) <= MAX_CATEGORIES
+                and all(isinstance(v, str) and v.strip() for v in value)
+                and len({v.strip() for v in value}) == len(value))
+    if key == "mcp_scope":
+        return isinstance(value, dict) and all(
+            isinstance(k, str) and isinstance(v, list) and all(isinstance(x, str) for x in v) for k, v in value.items())
+    if key in ("auto_summary", "update_check", "mcp_enabled", "mcp_transcripts"):
         return isinstance(value, bool)
     if key == "update_checked_at":
         return isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0
@@ -53,7 +68,7 @@ def _valid(key: str, value) -> bool:
 
 def load(path: Path | None = None) -> dict:
     path = path or config.SETTINGS_PATH
-    data = dict(DEFAULTS)
+    data = json.loads(json.dumps(DEFAULTS))  # 深拷貝：categories／mcp_scope 是可變物件，別讓呼叫端改到預設值
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
         if isinstance(raw, dict):

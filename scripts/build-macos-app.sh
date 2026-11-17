@@ -54,6 +54,23 @@ else
   exit 1
 fi
 
+# MCP 冒煙測試：AI 助理會用「App 執行檔 mcp」啟動它，從 stdin／stdout 講 JSON-RPC。
+# 無主控台的 App 讀寫 stdio 是否正常，只有真的跑封裝版才驗得到。用空的會議資料夾與設定，不碰使用者資料。
+MCP_TMP="$(mktemp -d)"
+printf '%s\n%s\n' \
+  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","clientInfo":{"name":"build-smoke"}}}' \
+  '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' \
+  | env -i HOME="$HOME" PATH=/usr/bin:/bin MEETING_LOCAL_OUT="$MCP_TMP/meetings" MEETING_LOCAL_SETTINGS="$MCP_TMP/settings.json" \
+    "$DIST/${APP_NAME}.app/Contents/MacOS/${APP_NAME}" mcp >"$MCP_TMP/out.jsonl" 2>"$MCP_TMP/err.log" || true
+if grep -q '"protocolVersion"' "$MCP_TMP/out.jsonl" && grep -q '"get_project_thread"' "$MCP_TMP/out.jsonl"; then
+  echo "✅ MCP 冒煙測試：封裝版 initialize／tools/list 正常"
+  rm -rf "$MCP_TMP"
+else
+  echo "❌ MCP 冒煙測試失敗，看 $MCP_TMP/out.jsonl 與 err.log" >&2
+  tail -20 "$MCP_TMP/err.log" >&2
+  exit 1
+fi
+
 DMG="$DIST/EchoicLocal-mac-arm64.dmg"
 rm -f "$DMG"
 STAGE="$ROOT/build/dmg-stage"

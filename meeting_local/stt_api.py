@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import json
+import re
 import os
 import subprocess
 import time
@@ -211,6 +212,26 @@ def segments_from_response(obj: dict, offset: float, chunk_end: float | None = N
     return segs
 
 
+_PUNCT = re.compile(r"[\s，。、．,.!?！？：:；;「」『』（）()\[\]…\-—]+")
+
+
+def is_prompt_echo(text: str, prompt: str, min_chunk: int = 4, threshold: float = 0.3) -> bool:
+    """回應幾乎都是提示詞的片段＝服務把提示當成內容照抄（whisper 的已知幻覺）。
+
+    做法：把提示以標點切成 ≥4 字的片段，從回應裡全部挖掉（也挖掉少最後一字的版本：服務常改結尾，
+    例「逐字記錄」→「逐字記錄音」），剩下的字不到原本 3 成就算回聲。回應很短或是空的不算。"""
+    body = _PUNCT.sub("", text)
+    if len(body) < 6:
+        return False
+    pieces = sorted({p for p in _PUNCT.split(prompt) if len(p) >= min_chunk}, key=len, reverse=True)
+    rest = body
+    for p in pieces:
+        rest = rest.replace(p, "")
+        if len(p) > min_chunk:
+            rest = rest.replace(p[:-1], "")
+    return len(rest) <= threshold * len(body)
+
+
 def transcribe(wav: Path, work_dir: Path, base_url: str, model: str, key: str, language: str,
                prompt: str | None, log=print, chunk_seconds: float = CHUNK_SECONDS) -> tuple[list[Segment], dict]:
     """回 (段落, 給 run.json 的資訊)。每段的原始回應存 work_dir/stt-api/，出事不必重傳。"""
@@ -219,6 +240,7 @@ def transcribe(wav: Path, work_dir: Path, base_url: str, model: str, key: str, l
     chunks = plan_chunks_for(wav, chunk_seconds)
     segments: list[Segment] = []
     sent = 0
+    retried = 0
     t0 = time.time()
     for i, (start, end) in enumerate(chunks, 1):
         flac = cut_flac(wav, start, end, out / f"chunk-{i:02d}.flac")
@@ -228,9 +250,16 @@ def transcribe(wav: Path, work_dir: Path, base_url: str, model: str, key: str, l
         log(f"上傳第 {i}/{len(chunks)} 段（{start / 60:.1f}–{end / 60:.1f} 分，{size / 1e6:.1f} MB）→ {host_of(base_url)}")
         resp = request_chunk(flac, base_url, model, key, language, prompt)
         (out / f"chunk-{i:02d}.json").write_text(json.dumps(resp, ensure_ascii=False), encoding="utf-8")
+        if prompt and is_prompt_echo(str(resp.get("text", "")), prompt):
+            log(f"⚠️ 第 {i} 段的結果幾乎都是提示詞的回聲（服務把提示當成要照抄的內容），不帶提示重送一次")
+            resp = request_chunk(flac, base_url, model, key, language, None)
+            (out / f"chunk-{i:02d}.retry.json").write_text(json.dumps(resp, ensure_ascii=False), encoding="utf-8")
+            sent += size
+            retried += 1
         flac.unlink(missing_ok=True)  # 音檔切片不留：原檔 audio.wav 還在
         segments.extend(segments_from_response(resp, start, end))
         sent += size
     info = {"engine": "api", "base_url_host": host_of(base_url), "model": model, "chunks": len(chunks),
-            "uploaded_bytes": sent, "seconds": round(time.time() - t0), "local": False}
+            "uploaded_bytes": sent, "seconds": round(time.time() - t0), "local": False,
+            "prompt_echo_retries": retried}
     return segments, info

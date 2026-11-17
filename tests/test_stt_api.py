@@ -133,3 +133,47 @@ def test_api_without_key_says_how_to_fix(monkeypatch, tmp_path: Path):
 def test_warning_names_the_host():
     w = stt_api.warning("https://api.groq.com/openai/v1")
     assert "api.groq.com" in w and "上傳" in w and "公司或客戶的會議" in w
+
+
+ECHO = "請以繁體中文逐字記錄音，請以繁體中文逐字記錄音。 請以繁體中文逐字記錄音。"
+PROMPT = "以下是台灣的會議錄音，請以繁體中文逐字記錄。"
+
+
+def test_prompt_echo_detected_but_real_speech_is_not():
+    # 2026-11-17 實際回應：whisper-1 把指令句回吐三次（結尾還多了「音」）
+    assert stt_api.is_prompt_echo(ECHO, PROMPT)
+    assert not stt_api.is_prompt_echo("他一定要去適應選民，要響應選民的訴求，因為我覺得兩黨都沒有做好", PROMPT)
+    # 正常會議剛好講到提示裡的詞：大部分是別的內容，不算回聲
+    assert not stt_api.is_prompt_echo("以下是台灣的會議錄音。我們今天討論預算三十萬要不要含稅還有上線日期", PROMPT)
+    assert not stt_api.is_prompt_echo("", PROMPT) and not stt_api.is_prompt_echo("好。", PROMPT)
+
+
+def test_transcribe_retries_echo_chunk_without_prompt(tmp_path: Path, monkeypatch):
+    calls = []
+
+    def fake_request(chunk, base, model, key, lang, prompt, **kw):
+        calls.append(prompt)
+        text = ECHO if prompt else "真的會議內容在這裡"
+        return {"text": text, "segments": [{"start": 0.0, "end": 5.0, "text": text}]}
+
+    def fake_cut(wav, start, end, dst):
+        dst.write_bytes(b"x" * 10)
+        return dst
+
+    monkeypatch.setattr(stt_api, "request_chunk", fake_request)
+    monkeypatch.setattr(stt_api, "cut_flac", fake_cut)
+    monkeypatch.setattr(stt_api, "plan_chunks_for", lambda wav, s: [(0.0, 47.0)])
+    segs, info = stt_api.transcribe(tmp_path / "a.wav", tmp_path, "https://x/v1", "m", "k", "zh", PROMPT, log=lambda s: None)
+    assert calls == [PROMPT, None]
+    assert [s.text for s in segs] == ["真的會議內容在這裡"]
+    assert info["prompt_echo_retries"] == 1
+    assert (tmp_path / "stt-api" / "chunk-01.retry.json").exists()
+
+
+def test_api_route_does_not_send_instruction_prompt():
+    from meeting_local import glossary
+    from meeting_local.glossary import Term
+    # 沒有詞彙表＝不帶提示；有詞彙表＝只帶專有名詞，不帶「請以繁體中文逐字記錄」
+    assert (glossary.whisper_prompt("", [], 180) or None) is None
+    p = glossary.whisper_prompt("", [Term("輝達", ["揮達"])], 180)
+    assert "輝達" in p and "繁體" not in p

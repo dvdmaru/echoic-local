@@ -19,8 +19,8 @@ REPO = "https://github.com/dvdmaru/echoic-local"
 DMG = "EchoicLocal-mac-arm64.dmg"
 DOWNLOAD = f"{REPO}/releases/latest/download/{DMG}"
 RELEASES = f"{REPO}/releases/latest"
-VERSION = "0.5.0"
-DATE = "2026-11-10"
+VERSION = "0.7.0"
+DATE = "2026-11-17"
 GA_ID = os.environ.get("ECHOIC_GA_ID", "G-80DLMF08HF").strip()
 KANDONG = "https://kandong.twtools.cc/"
 CLAUDE_CODE = "https://docs.claude.com/en/docs/claude-code"
@@ -28,7 +28,8 @@ BLACKHOLE = "https://existential.audio/blackhole/"
 
 TAGLINE = "會議錄音，在自己的 Mac 上變成逐字稿"
 DESC = ("Echoic 本機版是免費開源的會議逐字稿工具：在自己的 Mac 上把會議錄音轉成台灣正體逐字稿，分好誰在說話、每段有時間戳，"
-        "預設錄音不上傳。想要摘要，再用你自己登入的 Claude 產生。目前支援 Apple Silicon Mac。")
+        "預設錄音不上傳。會議按客戶、專案整理，同一個專案的進度和待辦自動串起來，可以搜尋、匯出。"
+        "想要摘要，再用你自己登入的 Claude 產生。目前支援 Apple Silicon Mac。")
 
 ICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E"
         "%3Crect width='32' height='32' rx='8' fill='%230f5c57'/%3E"
@@ -44,12 +45,21 @@ FAQ = [
      "預設不會。錄音、逐字稿都只存在你的電腦（預設在「下載項目」的 meetings 資料夾）。只有你打開摘要功能時，"
      "逐字稿文字才會送進你自己登入的 Claude Code。0.4.0 起可以自己選線上語音辨識，選了就會把錄音上傳到你填的服務，"
      "App 會先提醒你；沒選就一律不送。下載軟體與模型仍需要網路；安裝版每天最多向 GitHub 查一次有沒有新版（不含任何會議內容），"
-     "App 右下角取消「自動」就不會查。"),
+     "在「設定 › 更新」取消自動檢查就不會查。0.6.0 起可以讓你自己的 AI 助理讀會議記錄，也是預設關、要你自己打開。"),
     ("摘要會吃掉我的 Claude 額度嗎？",
      "會，所以預設關。一小時的會議大約送出 4～5 萬字、拿回約 1 萬字（專名候選表與摘要各一次）。"
      "用 Pro（每月 US$20）方案時，一天做好幾場長會議可能比較快碰到用量上限。你可以只出逐字稿，想要哪一場的摘要再單獨按一次。"),
     ("沒有 Claude 可以用嗎？",
      "可以。沒裝 Claude Code 時只會產出逐字稿、說話人與時間戳，其他功能都一樣。"),
+    ("很多場會議怎麼整理？",
+     "0.6.0 起每場會議可以標「客戶」「專案」（欄位名稱可以自己改），左側欄就是「客戶 › 專案」的資料夾樹。"
+     "點一個專案，會看到那個專案每一場的時間線、所有還沒做完的待辦；按「請 Claude 整理進度」（選用），"
+     "會讀那些場的摘要，整理出目前進度、前後講法不一致的地方、下次要追的事。⌘K 可以搜全部會議的摘要與逐字稿，"
+     "選好的會議可以匯出成 Markdown 或單一 HTML 檔。分類只是標籤，存在每場資料夾的 meta.json，不會搬動檔案。"),
+    ("可以讓 Claude 等 AI 助理讀我的會議嗎？",
+     "可以，0.6.0 起支援 MCP，預設關。在「AI 助理連線」打開後，Claude Desktop、Claude Code 等支援 MCP 的 App 可以列出、搜尋、"
+     "讀取會議摘要與逐字稿，也能查某個客戶或專案的進度與待辦；只能讀，不能改或刪。可以只開放某些客戶、可以不給逐字稿，"
+     "單場會議也能標成不給 AI 助理讀，每次讀取都會留紀錄。助理讀到的內容會送到那個助理背後的 AI 服務，公司或客戶的會議請先確認可以。"),
     ("為什麼 macOS 說「無法打開」，只給「丟到垃圾桶」？",
      "因為這個 App 沒有付費的 Apple 公證，用瀏覽器下載的版本第一次打開會被 macOS 擋下來，不是 App 壞掉或有毒。"
      "請按「完成」，不要按「丟到垃圾桶」，再從安裝教學的三種做法挑一種：系統設定按「仍要打開」、終端機一行指令解除，或用一行指令直接安裝。"
@@ -63,7 +73,7 @@ FAQ = [
      "0.4.0 起，轉的時候視窗和其他程式照常能用（說話人分離改在獨立程序跑，以前會讓視窗一次凍住半分鐘以上）。"
      "語音辨識主要用 GPU，剪片、遊戲這類重度用 GPU 的工作會一起變慢。想再讓出一點資源，可以勾「本機背景模式」，代價是多花約 4 成時間。"),
     ("可以用線上的語音辨識嗎？",
-     "可以，0.4.0 起是選用功能、預設關。按「線上 API 設定…」填任何 OpenAI 相容的服務（OpenAI、Groq 或自己架的 whisper 伺服器）與 API key。"
+     "可以，0.4.0 起是選用功能、預設關。在「設定 › 語音辨識」填任何 OpenAI 相容的服務（OpenAI、Groq 或自己架的 whisper 伺服器）與 API key。"
      "選了就會把錄音上傳到那個服務，上傳後怎麼保存、會不會拿去訓練依該服務的條款而定；公司或客戶的會議請先確認可以交給第三方。"
      "API key 只存在你的電腦，說話人分離與轉台灣正體仍在本機做。"),
     ("可以錄 Google Meet、Teams、Zoom 嗎？",
@@ -89,10 +99,11 @@ GUIDE_STEPS = [
      f"按「下載語音辨識模型」，約 1.6 GB，從 Hugging Face 官方下載並比對 SHA256。裝過<a href=\"{KANDONG}\">看懂 KanDong</a>的話，"
      "通常已經有了，按鈕會直接顯示就緒。"),
     ("錄音、轉逐字稿",
-     "選錄音來源（實體會議選「只錄麥克風」，線上會議選「兩者都錄」），按「開始錄音」，結束按「停止」，再按「轉逐字稿」。"
+     "按左上「開始錄音」，選錄音來源（實體會議選「只錄麥克風」，線上會議選「麥克風＋系統音」），可以順便選客戶、專案，"
+     "按「開始錄音」。開會時可以在「我的筆記」邊聽邊記，每行會記下錄音時間。結束按「停止錄音」，再按「轉逐字稿」，轉完會直接打開這場。"
      "與會者有填，說話人分離會準很多。"),
     ("（選用）產生摘要",
-     f"先安裝並登入 <a href=\"{CLAUDE_CODE}\">Claude Code</a>。勾「轉完逐字稿後自動用 Claude 產生摘要」，或對單場按「產生這場摘要」。"
+     f"先安裝並登入 <a href=\"{CLAUDE_CODE}\">Claude Code</a>。在「設定 › 摘要」勾「轉完逐字稿後自動用 Claude 產生摘要」，或在單場按「產生摘要（Claude）」。"
      "會用到你 Claude 方案的額度，所以預設不自動做。"),
 ]
 
@@ -179,6 +190,9 @@ def page_index() -> str:
         ("🇹🇼", "台灣正體＋詞彙表", "輸出一律台灣正體。公司名、產品名常寫錯？收進詞彙表一次，之後每場自動修。"),
         ("⏱️", "每段都有時間戳", "逐字稿、決議、待辦都附時間，想確認就回去聽原音。"),
         ("✨", "摘要是選用的", "要摘要，再用你自己登入的 Claude 產生；預設關，不會偷偷用掉你的額度。"),
+        ("📁", "按客戶、專案整理", "左側欄就是「客戶 › 專案」的資料夾樹。同一個專案的會議自動串成時間線，待辦跨場彙整，前後講法不一樣也看得到。"),
+        ("🔎", "搜尋、匯出", "⌘K 搜全部會議的摘要與逐字稿；選好的會議匯出成 Markdown 或單一 HTML 檔，直接寄給別人。"),
+        ("🤖", "讓你的 AI 助理讀（選用）", "支援 MCP：Claude Desktop、Claude Code 可以查你的會議記錄。預設關、只能讀，可以只開放某些客戶。"),
         ("🤝", "和看懂共用模型", "裝過看懂 KanDong 的人，通常不用再下載 1.6 GB 的語音辨識模型。"),
     ]
     cards = "".join(f'<li class="card"><span class="emo" aria-hidden="true">{e}</span><h3>{t}</h3><p>{d}</p></li>' for e, t, d in feats)
@@ -188,20 +202,14 @@ def page_index() -> str:
 <div>
 <p class="eyebrow">免費開源・Mac・會後逐字稿</p>
 <h1>會議錄音，<br>在自己的 Mac 上<br><span class="hl">變成逐字稿</span>。</h1>
-<p class="lead">分好誰在說話、每段都有時間戳、一律台灣正體。錄音預設不上傳。想要摘要，再用你自己的 Claude。</p>
+<p class="lead">分好誰在說話、每段都有時間戳、一律台灣正體。會議按客戶、專案整理，同一個專案的進度和待辦自動串起來。錄音預設不上傳；想要摘要，再用你自己的 Claude。</p>
 <div class="cta">{dl_button()}<a class="btn ghost" href="/guide/">先看安裝教學</a></div>
 <p class="note">錄音前，請先取得與會者同意。</p>
 </div>
-<div class="demo" aria-label="逐字稿畫面示意">
-<div class="demo-bar"><span></span><span></span><span></span><b>transcript-by-minute.txt</b></div>
-<div class="demo-body">
-<p><time>[00:03]</time><em class="s0">SPEAKER_00</em>那我們先看上週的數字，轉換率有比較好。</p>
-<p><time>[00:04]</time><em class="s1">SPEAKER_01</em>對，改版之後大概多了兩成，但客服量也變多。</p>
-<p><time>[00:05]</time><em class="s0">SPEAKER_00</em>好，那客服這塊下週三前給我一個方案。</p>
-<p><time>[00:06]</time><em class="s1">SPEAKER_01</em>沒問題，我週三中午前寄給你。</p>
-</div>
-<p class="demo-cap">示意畫面（虛構對話）</p>
-</div>
+<figure class="demo shot">
+<img src="/img/app.jpg" width="1400" height="866" alt="Echoic 本機版的畫面：左邊是客戶與專案的資料夾樹，中間是一場會議的摘要（決議、待辦、數字表，每條附時間戳），右邊是同一個專案的其他場、前後不一致與還沒做完的待辦">
+<figcaption class="demo-cap">0.7.0 畫面（虛構資料）</figcaption>
+</figure>
 </div></section>
 
 <section class="wrap"><h2 class="sec">它會幫你做什麼</h2><ul class="cards">{cards}</ul></section>
@@ -210,7 +218,7 @@ def page_index() -> str:
 <ol class="steps">
 <li><b>錄</b><span>選「只錄麥克風」或「兩者都錄」，按開始。</span></li>
 <li><b>轉</b><span>按「轉逐字稿」，等語音辨識和說話人分離跑完。</span></li>
-<li><b>看</b><span>打開資料夾：逐字稿、說話人、（選用）摘要都在裡面，也能直接當 Obsidian 筆記庫。</span></li>
+<li><b>看</b><span>轉完直接在 App 裡看：摘要、逐字稿，時間戳點了就播原音；同一個客戶、專案的會議自動串起來。資料夾也能直接當 Obsidian 筆記庫。</span></li>
 </ol>
 <p class="small">M4 MacBook Air 實測：語音辨識每小時錄音多半 4～6 分鐘，說話人分離另外約 7 分鐘；轉的時候照常能用電腦。</p>
 </section>
@@ -342,6 +350,9 @@ def page_faq() -> str:
 
 
 CSS = """
+.demo.shot{transform:rotate(.6deg);margin:0;background:#14201e}
+.demo.shot img{display:block;width:100%;height:auto}
+.demo.shot figcaption{padding:8px 16px 10px}
 :root{--ink:#1d2321;--muted:#5b6461;--bg:#fbf7f0;--card:#fff;--teal:#0f5c57;--teal2:#127a72;--sun:#ffd166;--coral:#ff7a59;--line:#e6dfd2}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink)}
@@ -415,12 +426,12 @@ kbd{border:1px solid #ccc;border-bottom-width:2px;border-radius:5px;padding:0 5p
 def llms() -> str:
     return f"""# {NAME}（Echoic Local）
 
-> 免費開源（MIT）的 Mac 會議逐字稿工具。會後在使用者自己的電腦把錄音轉成台灣正體逐字稿（whisper.cpp 語音辨識＋sherpa-onnx 說話人分離），預設錄音不上傳；0.4.0 起可自選 OpenAI 相容的線上語音辨識（選了會上傳錄音，預設關）。摘要選用，透過使用者自己登入的 Claude Code 產生，會用到使用者自己 Claude 方案的額度，預設關閉。目前只支援 Apple Silicon Mac（macOS 13+）；沒有即時字幕。
+> 免費開源（MIT）的 Mac 會議逐字稿工具。會後在使用者自己的電腦把錄音轉成台灣正體逐字稿（whisper.cpp 語音辨識＋sherpa-onnx 說話人分離），預設錄音不上傳；0.4.0 起可自選 OpenAI 相容的線上語音辨識（選了會上傳錄音，預設關）。摘要選用，透過使用者自己登入的 Claude Code 產生，會用到使用者自己 Claude 方案的額度，預設關閉。0.6.0 起會議可按客戶、專案分類，同專案的時間線與待辦自動彙整，可搜尋、匯出 Markdown／HTML，並以 MCP 讓使用者自己設定的 AI 助理唯讀查詢（預設關，可限範圍）；0.7.0 起介面改成資料夾樹＋閱讀頁，可直接預覽會議資料夾裡的 HTML。目前只支援 Apple Silicon Mac（macOS 13+）；沒有即時字幕。
 
 ## 頁面
 - [首頁與下載]({BASE}/)：功能、限制、下載連結。
 - [安裝教學]({BASE}/guide/)：第一次開啟（仍要打開）、麥克風權限、下載模型、錄線上會議（BlackHole）、詞彙表、輸出檔。
-- [常見問題]({BASE}/faq/)：費用、隱私、Claude 額度、電腦規格、處理時間、準確度、和看懂 KanDong 共用模型。
+- [常見問題]({BASE}/faq/)：費用、隱私、Claude 額度、電腦規格、處理時間、準確度、整理多場會議、讓 AI 助理讀（MCP）、和看懂 KanDong 共用模型。
 - [原始碼]({REPO})、[最新版]({RELEASES})。
 
 ## 引用範圍

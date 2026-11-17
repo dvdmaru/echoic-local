@@ -1,3 +1,6 @@
+.demo.shot{transform:rotate(.6deg);margin:0;background:#14201e}
+.demo.shot img{display:block;width:100%;height:auto}
+.demo.shot figcaption{padding:8px 16px 10px}
 :root{--ink:#1d2321;--muted:#5b6461;--bg:#fbf7f0;--card:#fff;--teal:#0f5c57;--teal2:#127a72;--sun:#ffd166;--coral:#ff7a59;--line:#e6dfd2}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink)}
