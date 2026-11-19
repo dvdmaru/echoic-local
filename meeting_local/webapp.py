@@ -226,8 +226,23 @@ class Api:
             "files": library.list_files(m),
             "has_audio": (m.folder / "audio.wav").exists(),
             "stt": stt.get("engine") or "", "stt_host": stt.get("base_url_host") or "",
+            "stt_failed": meta.get("stt_failed") or None,
+            "stt_partial": self._partial_loss(meta, stt),
             "context": ctx,
         }
+
+    @staticmethod
+    def _partial_loss(meta: dict, stt: dict) -> float | None:
+        """線上辨識成功但有一段被幻覺迴圈吃掉（≥20%）→ 回比例，畫面提示可用本機重轉。
+        舊的 run.json 沒有 hallucination_coverage，就用 hallucination_runs 現算。"""
+        from .cli import STT_FAIL_COVERAGE, STT_PARTIAL_COVERAGE, hallucination_coverage
+
+        if stt.get("engine") != "api" or meta.get("stt_failed"):
+            return None
+        cov = meta.get("hallucination_coverage")
+        if cov is None:
+            cov = hallucination_coverage(meta.get("hallucination_runs") or [], (meta.get("audio") or {}).get("duration") or 0)
+        return round(cov, 3) if STT_PARTIAL_COVERAGE <= cov < STT_FAIL_COVERAGE else None
 
     @_expected
     def read_file(self, mid: str, name: str) -> dict:
@@ -424,13 +439,15 @@ class Api:
         return cands[-1] if cands else job_name
 
     @_expected
-    def run_pipeline(self, mid: str, summary: bool | None = None, attendees: str = "") -> dict:
-        from .cli import SUMMARY_FAILED
+    def run_pipeline(self, mid: str, summary: bool | None = None, attendees: str = "", engine: str = "") -> dict:
+        from .cli import STT_FAILED, SUMMARY_FAILED
 
         s = settings.load()
         want = s["auto_summary"] if summary is None else bool(summary)
+        # engine＝只這一場改用的引擎（「用本機重轉」按鈕）；不寫回設定檔
+        eng = engine if engine in settings.ENGINES else s["stt_engine"]
         argv = ["all", str(self._out_root / mid), "--summary" if want else "--no-summary",
-                "--engine", s["stt_engine"], "--speed", s["local_speed"]]
+                "--engine", eng, "--speed", s["local_speed"]]
         if attendees.strip():
             argv += ["--attendees", attendees.strip()]
         if not re.match(r"^\d{4}-\d{2}-\d{2}-\d{4}$", mid):
@@ -439,7 +456,7 @@ class Api:
         def work():
             rc = self._run_cli(argv)
             return {"ok": rc in (0, SUMMARY_FAILED), "rc": rc, "summary_failed": rc == SUMMARY_FAILED,
-                    "new_id": self._resolve(mid)}
+                    "stt_failed": rc == STT_FAILED, "new_id": self._resolve(mid)}
 
         self._start("pipeline", mid, work)
         return {"ok": True}

@@ -27,6 +27,13 @@ def test_api_exposes_no_public_attributes(env):
     assert public == []  # pywebview 會把公開屬性整個暴露給網頁
 
 
+def test_record_source_defaults_to_both_when_blackhole_present():
+    # 0.7.0 把預設寫死成只錄麥克風，線上會議對方的聲音只剩喇叭回授，線上辨識整段幻覺（2026-11-19）。
+    js = (Path(webapp.__file__).parent / "web" / "app.js").read_text(encoding="utf-8")
+    assert "source: 'mic'" not in js
+    assert "v === 'both' && ok" in js
+
+
 def test_tree_and_list(env):
     api, _ = env
     t = api.tree()

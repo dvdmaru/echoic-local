@@ -456,12 +456,27 @@ def cmd_transcribe(args: argparse.Namespace) -> Path:
     log(f"幻覺去重：合併 {len(halluc)} 組迴圈（{sum(r['repeats'] for r in halluc)} 段）；疑似幻覺句 {len(suspects)}；"
         f"已轉台灣正體；詞彙表換掉 {replaced} 處錯寫")
 
+    coverage = hallucination_coverage(halluc, info["duration"])
+    if engine == "api" and coverage >= STT_FAIL_COVERAGE:
+        # 2026-11-19 實例：線上會議只錄麥克風（對方聲音隔著喇叭），OpenAI whisper-1 整段判成沒人講話，
+        # 回詞彙表、拿掉提示後回「咳」×351；同一份錄音本機 whisper 轉得出完整內容。
+        # 停在這裡：不把幻覺寫成逐字稿、也不拿去做摘要；畫面會提供「用本機重轉」。
+        update_run_json(run_json, models_touched={"stt": {**stt_info, "prompt": prompt, "input": model_wav.name}},
+                        hallucination_runs=halluc, hallucination_coverage=round(coverage, 3),
+                        stt_failed={"engine": "api", "host": stt_info.get("base_url_host"),
+                                    "coverage": round(coverage, 3), "at": time.strftime("%Y-%m-%d %H:%M:%S")})
+        raise SttFailed(
+            f"線上語音辨識失敗：{coverage:.0%} 的時間是重複的幻覺（常見原因：線上會議只錄了麥克風，對方聲音隔著喇叭）。"
+            f"錄音本身可能沒問題，改用本機重轉：meeting-local transcribe \"{job}\" --engine local")
+
     update_run_json(
         run_json,
         models_touched={"stt": {**stt_info, "prompt": prompt, "input": model_wav.name}},
         whisper_seconds=round(whisper_sec),
         segments=len(segments),
         hallucination_runs=halluc,
+        hallucination_coverage=round(coverage, 3),
+        stt_failed=None,  # 這次轉成功，清掉上一次線上失敗的標記
         suspect_lines=len(suspects),
         glossary={"path": str(config.GLOSSARY), "terms": len(terms), "replacements": replaced},
     )
@@ -469,6 +484,35 @@ def cmd_transcribe(args: argparse.Namespace) -> Path:
     # 4. 說話人分離 → 5. 輸出（共用 _diarize_and_write，diarize 子指令也走同一條）
     _diarize_and_write(job, wav, segments, halluc, args, model_wav=model_wav)
     return job
+
+
+STT_FAIL_COVERAGE = 0.5  # 線上辨識結果有一半以上的時間是幻覺迴圈，就當這次辨識失敗
+# 20%～50%：照常產出，但畫面提示「部分內容可能遺失」。實例：11/11 Meteor 那場 10:30–19:08 被一句重複 26 次吃掉（46%）
+STT_PARTIAL_COVERAGE = 0.2
+
+
+class SttFailed(RuntimeError):
+    """線上語音辨識整段幻覺；錄音可能沒問題，該改用本機重轉。"""
+
+
+def hallucination_coverage(runs: list[dict], duration: float) -> float:
+    """幻覺迴圈佔音檔時長的比例（0～1；重疊的區段只算一次）。"""
+    if not runs or not duration:
+        return 0.0
+    spans = sorted((max(0.0, float(r["start"])), min(float(duration), float(r["end"]))) for r in runs)
+    total, cur_s, cur_e = 0.0, None, None
+    for s, e in spans:
+        if e <= s:
+            continue
+        if cur_e is None or s > cur_e:
+            if cur_e is not None:
+                total += cur_e - cur_s
+            cur_s, cur_e = s, e
+        else:
+            cur_e = max(cur_e, e)
+    if cur_e is not None:
+        total += cur_e - cur_s
+    return min(1.0, total / float(duration))
 
 
 def stt_engine(args: argparse.Namespace) -> str:
@@ -695,6 +739,7 @@ _STAMP_RE = re.compile(r"^(\d{4}-\d{2}-\d{2})-(\d{2})(\d{2})")
 
 
 SUMMARY_FAILED = 3  # 逐字稿完成，摘要沒做成（UI 用來分辨「全失敗」）
+STT_FAILED = 4  # 線上語音辨識整段幻覺（UI 用來顯示「用本機重轉」）
 
 
 def want_summary(args: argparse.Namespace) -> bool:
@@ -878,6 +923,9 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         print("\n中斷。", file=sys.stderr)
         return 130
+    except SttFailed as exc:
+        print(f"❌ {exc}", file=sys.stderr)
+        return STT_FAILED
     except (RuntimeError, FileNotFoundError, TimeoutError, ValueError) as exc:
         print(f"❌ {exc}", file=sys.stderr)
         return 1

@@ -4,7 +4,7 @@
 const S = {
   boot: null, tree: null, view: 'list', mid: null, tab: 'summary', file: null, meeting: null,
   list: { labels: {}, query: '', from: '', to: '', transcript: true }, sel: new Set(), expanded: new Set(),
-  project: null, rec: { phase: 'setup', source: 'mic', labels: {}, name: '', attendees: '', notes: [], ctx: null, result: null, job: '' },
+  project: null, rec: { phase: 'setup', source: null, labels: {}, name: '', attendees: '', notes: [], ctx: null, result: null, job: '' },
   cursor: 0, log: [], busy: '', busyJob: '', recLive: null,
 };
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -238,7 +238,17 @@ function renderMeeting() {
     m.private ? '<span class="chip">🔒 不給 AI 助理</span>' : ''].join('');
   const busyHere = S.busy && S.busyJob === m.id;
   const hasTr = m.transcript.length > 0, hasSum = !!m.summary_html;
-  const action = !hasTr ? `<button class="btn hot" id="bRun" type="button"${busyHere || S.busy ? ' disabled' : ''}>轉逐字稿${S.boot.settings.auto_summary && S.boot.has_claude ? '＋摘要' : ''}</button>`
+  const failed = m.stt_failed;
+  const failBox = failed ? `<div class="box warn" style="margin-top:14px"><div class="h">線上語音辨識失敗</div>
+      ${esc(failed.host || '線上服務')} 回來的結果有 ${Math.round((failed.coverage || 0) * 100)}% 是重複的幻覺，所以沒有拿去做逐字稿和摘要。
+      常見原因：線上會議只錄了麥克風，對方的聲音是隔著喇叭收進來的（下次錄線上會議請選「麥克風＋系統音」）。
+      錄音本身通常沒問題，可以用本機重轉：只這一場，不改你的設定，錄音不會再上傳。
+      <div style="margin-top:10px"><button class="btn hot" id="bLocal" type="button"${S.busy ? ' disabled' : ''}>用本機重轉${S.boot.settings.auto_summary && S.boot.has_claude ? '＋摘要' : ''}</button></div></div>`
+    : m.stt_partial ? `<div class="box warn" style="margin-top:14px"><div class="h">部分內容可能遺失</div>
+      線上語音辨識有 ${Math.round(m.stt_partial * 100)}% 的時間是重複的幻覺（逐字稿裡標「幻覺，已略」的地方），那幾段的內容沒有轉出來。
+      想救回來可以用本機重轉：只這一場，錄音不會再上傳；會覆蓋這場現在的逐字稿${hasSum ? '和摘要（摘要裡勾過的待辦也會重來）' : ''}。
+      <div style="margin-top:10px"><button class="btn" id="bLocal" type="button"${S.busy ? ' disabled' : ''}>用本機重轉${S.boot.settings.auto_summary && S.boot.has_claude ? '＋摘要' : ''}</button></div></div>` : '';
+  const action = failed ? '' : !hasTr ? `<button class="btn hot" id="bRun" type="button"${busyHere || S.busy ? ' disabled' : ''}>轉逐字稿${S.boot.settings.auto_summary && S.boot.has_claude ? '＋摘要' : ''}</button>`
     : (!hasSum && S.boot.has_claude ? `<button class="btn primary" id="bSum" type="button"${S.busy ? ' disabled' : ''}>產生摘要（Claude）</button>` : '');
   const tabs = [['summary', '摘要'], ['transcript', '逐字稿'], ['entities', '專名表'], ['files', '原始檔（MD／HTML）']]
     .map(([k, l]) => `<button class="tab${S.tab === k ? ' on' : ''}" data-tab="${k}" role="tab" aria-selected="${S.tab === k}" type="button">${l}</button>`).join('');
@@ -257,6 +267,7 @@ function renderMeeting() {
         <button class="btn" id="bLab" type="button">分類…</button>
         <button class="btn" id="bExp1" type="button">${ICON.down}匯出</button>
         <button class="btn" id="bFind" type="button">在 Finder 顯示</button></div>
+      ${failBox}
       ${busyHere ? `<div class="logbox" id="mlog" style="margin-top:14px">${esc(S.log.slice(-60).join('\n'))}</div>` : ''}
       <div class="tabs" role="tablist" aria-label="這場會議">${tabs}</div>
       <div id="tabbody">${body}</div>
@@ -304,6 +315,7 @@ function wireMeeting(m) {
   $('#bExp1').onclick = () => exportDialog([m.id], m.title);
   $('#bFind').onclick = () => api('reveal', m.id, '');
   if ($('#bRun')) $('#bRun').onclick = () => runPipeline(m.id);
+  if ($('#bLocal')) $('#bLocal').onclick = () => runPipeline(m.id, 'local');
   if ($('#bSum')) $('#bSum').onclick = async () => { const r = await api('run_summary', m.id); if (r.ok === false) toast(r.error); else { S.busy = 'summary'; S.busyJob = m.id; renderMeeting(); } };
   $$('#view [data-t]').forEach((b) => b.onclick = () => seek(tsToSec(b.dataset.t)));
   $$('#sum li.task').forEach((li, i) => {
@@ -346,8 +358,8 @@ async function showFile(m, name) {
   $('#fOpen').onclick = () => api('open_external', m.id, name);
   $$('[data-t]', box).forEach((b) => b.onclick = () => seek(tsToSec(b.dataset.t)));
 }
-async function runPipeline(id) {
-  const r = await api('run_pipeline', id, null, '');
+async function runPipeline(id, engine = '') {
+  const r = await api('run_pipeline', id, null, '', engine);
   if (r.ok === false) return toast(r.error);
   S.busy = 'pipeline'; S.busyJob = id; renderStatus(); render();
 }
@@ -361,6 +373,11 @@ async function renderRecord() {
   const opts = (c) => Object.keys(t.values[c] || {}).map((v) => `<option value="${esc(v)}">`).join('');
   const labelInputs = cats.map((c) => `<label>${esc(c)}</label><div><input type="text" list="dl-${esc(c)}" data-rl="${esc(c)}" value="${esc(R.labels[c] || '')}" placeholder="選填，可打新的"><datalist id="dl-${esc(c)}">${opts(c)}</datalist></div>`).join('');
   const srcs = [['mic', '只錄麥克風（實體會議）', !!b.mic], ['both', '麥克風＋系統音（線上會議）', !!(b.mic && b.blackhole)], ['system', '只錄系統音', !!b.blackhole]];
+  // 預設照舊版（ui.py）：有 BlackHole 就「兩者都錄」。只錄麥克風時，線上會議對方的聲音是隔著喇叭收進來的，
+  // 線上辨識會整段判成沒人講話而幻覺（2026-11-19 實例）。選過就沿用使用者的選擇。
+  if (!R.source || !srcs.some(([v, , ok]) => v === R.source && ok)) {
+    R.source = (srcs.find(([v, , ok]) => v === 'both' && ok) || srcs.find(([, , ok]) => ok) || ['mic'])[0];
+  }
   const ready = !b.missing.length;
   let main = '';
   if (R.phase === 'setup') {
@@ -735,8 +752,10 @@ async function onDone(d) {
     await refreshTree();
     const id = d.new_id || d.job;
     if (d.ok) toast(d.summary_failed ? '逐字稿完成；摘要沒做成，可稍後再按「產生摘要」' : (d.step === 'summary' ? '摘要完成' : '轉錄完成'), 4000);
+    else if (d.stt_failed) toast('線上語音辨識失敗（整段幻覺）。錄音沒丟，可以在這場按「用本機重轉」', 8000);
     else toast(`沒有完成（看工作紀錄）${d.error ? '：' + d.error : ''}`, 6000);
     if (S.rec.job === d.job) S.rec.job = id;
+    if (d.stt_failed) { S.meeting = null; return openMeeting(id, 'summary'); }
     if ((S.view === 'meeting' && S.mid === d.job) || (S.view === 'record' && S.rec.phase === 'done')) { if (d.ok) openMeeting(id); else render(); }
   } else if (d.step === 'project') {
     toast(d.ok ? '進度整理完成' : '整理失敗：' + (d.error || ''), 4000);

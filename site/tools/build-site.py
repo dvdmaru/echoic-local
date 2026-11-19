@@ -2,6 +2,9 @@
 
     python3 site/tools/build-site.py
 
+「輸入法」頁（/voice/）的安裝檔不是這個 repo 產生的：來自私有 repo voice-input 的 `./build.sh --dist`，
+把 dist/ 的 EchoicVoice-mac-arm64.zip、SHA256SUMS.txt 複製到 site/public/voice/，並同步改下面的 VOICE_VERSION／VOICE_DATE。
+
 GA4 評估 ID 預設是 echoic.twtools.cc 的資料串流（Charlie 2026-11-01 建）；ECHOIC_GA_ID 可覆蓋，設成空字串就不放追蹤碼。
 """
 from __future__ import annotations
@@ -13,18 +16,26 @@ from pathlib import Path
 
 PUBLIC = Path(__file__).resolve().parents[1] / "public"
 INSTALL_SH = Path(__file__).resolve().parent / "install.sh"  # 一行安裝腳本：原稿在這裡，public/ 是複本
+INSTALL_VOICE_SH = Path(__file__).resolve().parent / "install-voice.sh"  # 輸入法的一行安裝腳本
 BASE = "https://echoic.twtools.cc"
 NAME = "Echoic 本機版"
 REPO = "https://github.com/dvdmaru/echoic-local"
 DMG = "EchoicLocal-mac-arm64.dmg"
 DOWNLOAD = f"{REPO}/releases/latest/download/{DMG}"
 RELEASES = f"{REPO}/releases/latest"
-VERSION = "0.7.0"
-DATE = "2026-11-17"
+VERSION = "0.7.1"
+DATE = "2026-11-19"
 GA_ID = os.environ.get("ECHOIC_GA_ID", "G-80DLMF08HF").strip()
 KANDONG = "https://kandong.twtools.cc/"
 CLAUDE_CODE = "https://docs.claude.com/en/docs/claude-code"
 BLACKHOLE = "https://existential.audio/blackhole/"
+
+VOICE_NAME = "Echoic 輸入法"
+VOICE_VERSION = "0.2.1"
+VOICE_DATE = "2026-11-19"
+VOICE_ZIP = "/voice/EchoicVoice-mac-arm64.zip"
+OPENAI_KEYS = "https://platform.openai.com/api-keys"
+BYTEPLUS_CONSOLE = "https://console.byteplus.com/"
 
 TAGLINE = "會議錄音，在自己的 Mac 上變成逐字稿"
 DESC = ("Echoic 本機版是免費開源的會議逐字稿工具：在自己的 Mac 上把會議錄音轉成台灣正體逐字稿，分好誰在說話、每段有時間戳，"
@@ -124,9 +135,9 @@ if(a)gtag('event','echoic_local_download',{{platform:a.getAttribute('data-dl')}}
 </script>"""
 
 
-def head(title: str, desc: str, path: str, extra_ld: list[dict] | None = None) -> str:
+def head(title: str, desc: str, path: str, extra_ld: list[dict] | None = None, app_ld: dict | None = None) -> str:
     url = BASE + path
-    lds = [{
+    lds = [app_ld or {
         "@context": "https://schema.org", "@type": "SoftwareApplication", "name": NAME, "alternateName": "Echoic Local",
         "description": DESC, "applicationCategory": "BusinessApplication", "operatingSystem": "macOS 13+ (Apple Silicon)",
         "softwareVersion": VERSION, "inLanguage": "zh-TW", "isAccessibleForFree": True,
@@ -164,7 +175,7 @@ def head(title: str, desc: str, path: str, extra_ld: list[dict] | None = None) -
 <body>
 <header class="top"><div class="wrap bar">
 <a class="logo" href="/" aria-label="{NAME} 首頁"><span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>Echoic <b>本機版</b></span></a>
-<nav><a href="/guide/">安裝教學</a><a href="/faq/">常見問題</a><a href="{REPO}">GitHub</a></nav>
+<nav><a href="/voice/">輸入法</a><a href="/guide/">安裝教學</a><a href="/faq/">常見問題</a><a href="{REPO}">GitHub</a></nav>
 </div></header>
 """
 
@@ -339,6 +350,102 @@ bash install.sh</pre>
 """ + FOOT
 
 
+VOICE_DESC = ("Echoic 輸入法是 Mac 的語音輸入小工具：在任何 App 按住 ⌃⌥/ 講話，放開後台灣正體文字直接貼到游標位置。"
+              "辨識用你自己的 OpenAI 或豆包（BytePlus Seed-ASR）API key，邊講邊送，放開後約 0.3～1 秒出字。免費，支援 Apple Silicon Mac。")
+
+VOICE_FAQ = [
+    ("要錢嗎？",
+     "App 免費。語音辨識是你自己的 OpenAI 或 BytePlus 帳戶在付費，依各家公布的語音辨識計價；講幾句話通常只是很小的金額，請以你帳戶的用量頁為準。"),
+    ("我講的話會送到哪裡？",
+     "按住快捷鍵時錄到的聲音，會直接從你的電腦送到你選的辨識服務（OpenAI 或 BytePlus），不經過我們的伺服器，我們也收不到。"
+     "那家服務怎麼保存、會不會拿去訓練，依該服務的條款而定。公司或客戶的內容，請先確認可以交給第三方處理。"),
+    ("API key 存在哪？會不會被打包或上傳？",
+     "只存在你的電腦：~/.config/echoic-voice/openai-key、byteplus-key，權限設成只有你自己讀得到。App 本身不含任何 key；"
+     "key 只會在辨識時送給它所屬的服務。log 只記長度與耗時，不記你講的內容。"),
+    ("OpenAI 和豆包差在哪？",
+     "我們用同一批錄音比過：兩邊選字準確度差不多。豆包（Seed-ASR 2.0）比較貼近原話、放開後出字較快（約 0.3 秒）；"
+     "OpenAI（gpt-transcribe）句子比較順，偶爾會幫你改個字（約 0.8 秒）。兩把 key 都填，就能用 ⌃⌥, 隨時切換比較。"),
+    ("沒有自動貼上，要自己按 ⌘V？",
+     "要自動貼上，macOS 需要「輔助使用」權限：系統設定 › 隱私權與安全性 › 輔助使用，打開「Echoic 輸入法」。沒打開時文字會放在剪貼簿，提示條會告訴你。"),
+    ("快捷鍵可以改嗎？",
+     "目前固定是按住 ⌃⌥/（Control＋Option＋斜線）講話、Esc 取消、⌃⌥, 切換引擎。"),
+    ("為什麼 macOS 說「無法打開」？",
+     "和 Echoic 本機版一樣，這個 App 沒有付費的 Apple 公證，用瀏覽器下載的版本第一次打開會被擋。按「完成」，再照下面三種做法挑一種；之後更新不用再做。"),
+    ("可以離線用嗎？",
+     "不行，辨識在雲端做，要有網路。想完全離線，請用 Echoic 本機版做會後逐字稿。"),
+]
+
+
+def page_voice() -> str:
+    app_ld = {
+        "@context": "https://schema.org", "@type": "SoftwareApplication", "name": VOICE_NAME, "alternateName": "Echoic Voice",
+        "description": VOICE_DESC, "applicationCategory": "UtilitiesApplication", "operatingSystem": "macOS 13+ (Apple Silicon)",
+        "softwareVersion": VOICE_VERSION, "inLanguage": "zh-TW", "isAccessibleForFree": True,
+        "offers": {"@type": "Offer", "price": "0", "priceCurrency": "TWD"},
+        "url": BASE + "/voice/", "downloadUrl": BASE + VOICE_ZIP,
+    }
+    faq_ld = {"@context": "https://schema.org", "@type": "FAQPage",
+              "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in VOICE_FAQ]}
+    faq = "".join(f"<details><summary>{esc(q)}</summary><p>{esc(a)}</p></details>" for q, a in VOICE_FAQ)
+    btn = (f'<a class="btn" href="{VOICE_ZIP}" data-dl="voice-mac">下載輸入法<small>Apple Silicon・macOS 13 以上・免費・{VOICE_VERSION}</small></a>')
+    app = f"{VOICE_NAME}.app"
+    return head(f"{VOICE_NAME}｜按住講話，放開就打好字", VOICE_DESC, "/voice/", [faq_ld], app_ld) + f"""<main class="wrap doc">
+<p class="eyebrow">免費・Mac・語音輸入</p>
+<h1>{VOICE_NAME}：<br>按住講話，<span class="hl">放開就打好字</span>。</h1>
+<p class="lead">在任何 App 裡按住 <kbd>⌃</kbd><kbd>⌥</kbd><kbd>/</kbd> 講話，放開後台灣正體文字直接貼到游標位置。辨識用你自己的 OpenAI 或豆包（BytePlus）API key，邊講邊送，放開後約 0.3～1 秒出字。</p>
+<p class="cta">{btn}</p>
+<p class="small">和 Echoic 本機版不同：輸入法的辨識在雲端，講話時聲音會送到你選的服務。App 不含任何 API key，也不經過我們的伺服器。</p>
+
+<h2>用起來是這樣</h2>
+<ul>
+<li><strong>按住 ⌃⌥/ 講話</strong>：螢幕下方出現提示條（紅點＋音量），放開後顯示「辨識中」，接著文字貼進去。</li>
+<li><strong>Esc</strong>：講到一半想放棄。</li>
+<li><strong>⌃⌥,</strong>：在 OpenAI 和豆包之間切換；選單列會顯示「〰 OpenAI」或「〰 豆包」。</li>
+<li><strong>台灣正體</strong>：兩個引擎都直接出正體；萬一冒出簡體字，會自動轉回來。</li>
+</ul>
+
+<h2 id="install">安裝</h2>
+<ol>
+<li><a href="{VOICE_ZIP}" data-dl="voice-mac">下載 EchoicVoice-mac-arm64.zip</a>，雙擊解壓縮，把「{VOICE_NAME}」拖到「應用程式」。</li>
+<li>第一次打開被擋（「無法打開」）：按<strong>「完成」</strong>，到「系統設定 › 隱私權與安全性」往下捲，按<strong>「仍要打開」</strong>。或用下面的指令。</li>
+<li>允許<strong>麥克風</strong>；再到「系統設定 › 隱私權與安全性 › <strong>輔助使用</strong>」打開「{VOICE_NAME}」，才能自動貼上。</li>
+<li>設定視窗會自己跳出來：貼上你的 API key，按<strong>「測試目前引擎」</strong>，看到 ✓ 就能用了。要開機自動啟動，在同一個視窗勾選。</li>
+</ol>
+<p>不想經過瀏覽器（不會被擋）：打開「終端機」，貼上這行：</p>
+<pre>curl -fsSL {BASE}/voice/install.sh | bash</pre>
+<p class="small">這支<a href="/voice/install.sh">安裝腳本</a>只會下載安裝檔、比對 SHA-256（<a href="/voice/SHA256SUMS.txt">SHA256SUMS.txt</a>）、複製到「應用程式」、打開。已經裝進「應用程式」才被擋，也可以用：<code>xattr -dr com.apple.quarantine "/Applications/{app}"</code></p>
+
+<h2 id="openai">申請 OpenAI API key（最簡單）</h2>
+<ol>
+<li>到 <a href="{OPENAI_KEYS}">platform.openai.com/api-keys</a> 登入（和 ChatGPT 訂閱是分開計費的，要另外在 Billing 儲值）。</li>
+<li>按「Create new secret key」，複製 <code>sk-</code> 開頭那串。</li>
+<li>貼到輸入法的「設定… › OpenAI」，按「測試目前引擎」。</li>
+</ol>
+
+<h2 id="byteplus">申請豆包 Seed-ASR（BytePlus）</h2>
+<p>豆包語音辨識在海外由 BytePlus（字節跳動的國際雲）提供；火山引擎（中國版）不收海外用戶。</p>
+<ol>
+<li>到 <a href="{BYTEPLUS_CONSOLE}">BytePlus 控制台</a>註冊並完成付款設定。</li>
+<li>進入語音服務（Seed Speech）的服務開通頁，開通<strong>串流語音辨識 2.0（Streaming ASR 2.0）</strong>。沒開通的話，測試會說「資源未授權」。</li>
+<li>在同一個控制台的 API Key 頁建立一把 key，複製下來。</li>
+<li>貼到輸入法的「設定… › 豆包（BytePlus）」，引擎選豆包，按「測試目前引擎」。</li>
+</ol>
+
+<h2>先說清楚做不到的</h2>
+<ul>
+<li>目前只有 Apple Silicon（M1 以後）Mac、macOS 13 以上。</li>
+<li>要有網路；辨識費用依你自己的 OpenAI／BytePlus 帳戶計。</li>
+<li>快捷鍵目前不能改；沒有自動更新，新版請回這頁下載（App 選單有「下載新版…」）。</li>
+<li>App 沒有付費的 Apple 公證，第一次打開要多做一步。</li>
+</ul>
+
+<h2>常見問題</h2><div class="faq">{faq}</div>
+<p class="cta">{btn}</p>
+<p class="small">版本 {VOICE_VERSION}（{VOICE_DATE}）。想把會議錄音在自己電腦上轉成逐字稿：<a href="/">Echoic 本機版</a>。</p>
+</main>
+""" + FOOT
+
+
 def page_faq() -> str:
     ld = {"@context": "https://schema.org", "@type": "FAQPage",
           "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in FAQ]}
@@ -431,6 +538,7 @@ def llms() -> str:
 ## 頁面
 - [首頁與下載]({BASE}/)：功能、限制、下載連結。
 - [安裝教學]({BASE}/guide/)：第一次開啟（仍要打開）、麥克風權限、下載模型、錄線上會議（BlackHole）、詞彙表、輸出檔。
+- [Echoic 輸入法]({BASE}/voice/)：另一個免費 Mac 工具。按住 ⌃⌥/ 講話、放開把台灣正體貼到游標處；雲端辨識，用使用者自己的 OpenAI（gpt-transcribe）或 BytePlus 豆包 Seed-ASR 2.0 API key，App 不含 key、不經過我們的伺服器。
 - [常見問題]({BASE}/faq/)：費用、隱私、Claude 額度、電腦規格、處理時間、準確度、整理多場會議、讓 AI 助理讀（MCP）、和看懂 KanDong 共用模型。
 - [原始碼]({REPO})、[最新版]({RELEASES})。
 
@@ -445,12 +553,14 @@ def main() -> None:
         "index.html": page_index(),
         "guide/index.html": page_guide(),
         "faq/index.html": page_faq(),
+        "voice/index.html": page_voice(),
+        "voice/install.sh": INSTALL_VOICE_SH.read_text(encoding="utf-8"),
         "site.css": CSS.lstrip(),
         "llms.txt": llms(),
         "install.sh": INSTALL_SH.read_text(encoding="utf-8"),
         "robots.txt": f"User-agent: *\nAllow: /\n\nSitemap: {BASE}/sitemap.xml\n",
         "sitemap.xml": '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-                       + "".join(f"  <url><loc>{BASE}{p}</loc><lastmod>{DATE}</lastmod></url>\n" for p in ("/", "/guide/", "/faq/"))
+                       + "".join(f"  <url><loc>{BASE}{p}</loc><lastmod>{DATE}</lastmod></url>\n" for p in ("/", "/guide/", "/faq/", "/voice/"))
                        + "</urlset>\n",
     }
     for rel, content in files.items():

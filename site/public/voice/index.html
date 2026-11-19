@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Echoic 輸入法｜按住講話，放開就打好字</title>
+<meta name="description" content="Echoic 輸入法是 Mac 的語音輸入小工具：在任何 App 按住 ⌃⌥/ 講話，放開後台灣正體文字直接貼到游標位置。辨識用你自己的 OpenAI 或豆包（BytePlus Seed-ASR）API key，邊講邊送，放開後約 0.3～1 秒出字。免費，支援 Apple Silicon Mac。">
+<link rel="canonical" href="https://echoic.twtools.cc/voice/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Echoic 本機版">
+<meta property="og:title" content="Echoic 輸入法｜按住講話，放開就打好字">
+<meta property="og:description" content="Echoic 輸入法是 Mac 的語音輸入小工具：在任何 App 按住 ⌃⌥/ 講話，放開後台灣正體文字直接貼到游標位置。辨識用你自己的 OpenAI 或豆包（BytePlus Seed-ASR）API key，邊講邊送，放開後約 0.3～1 秒出字。免費，支援 Apple Silicon Mac。">
+<meta property="og:url" content="https://echoic.twtools.cc/voice/">
+<meta property="og:image" content="https://echoic.twtools.cc/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="zh_TW">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0f5c57">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230f5c57'/%3E%3Cg fill='%23ffd166'%3E%3Crect x='6' y='13' width='3' height='6' rx='1.5'/%3E%3Crect x='11' y='9' width='3' height='14' rx='1.5'/%3E%3Crect x='16' y='6' width='3' height='20' rx='1.5'/%3E%3Crect x='21' y='10' width='3' height='12' rx='1.5'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+<link rel="stylesheet" href="/site.css">
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-80DLMF08HF"></script>
+<script>
+window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}
+gtag('js',new Date());gtag('config','G-80DLMF08HF');
+document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a[data-dl]');
+if(a)gtag('event','echoic_local_download',{platform:a.getAttribute('data-dl')});});
+</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Echoic 輸入法", "alternateName": "Echoic Voice", "description": "Echoic 輸入法是 Mac 的語音輸入小工具：在任何 App 按住 ⌃⌥/ 講話，放開後台灣正體文字直接貼到游標位置。辨識用你自己的 OpenAI 或豆包（BytePlus Seed-ASR）API key，邊講邊送，放開後約 0.3～1 秒出字。免費，支援 Apple Silicon Mac。", "applicationCategory": "UtilitiesApplication", "operatingSystem": "macOS 13+ (Apple Silicon)", "softwareVersion": "0.2.1", "inLanguage": "zh-TW", "isAccessibleForFree": true, "offers": {"@type": "Offer", "price": "0", "priceCurrency": "TWD"}, "url": "https://echoic.twtools.cc/voice/", "downloadUrl": "https://echoic.twtools.cc/voice/EchoicVoice-mac-arm64.zip"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "要錢嗎？", "acceptedAnswer": {"@type": "Answer", "text": "App 免費。語音辨識是你自己的 OpenAI 或 BytePlus 帳戶在付費，依各家公布的語音辨識計價；講幾句話通常只是很小的金額，請以你帳戶的用量頁為準。"}}, {"@type": "Question", "name": "我講的話會送到哪裡？", "acceptedAnswer": {"@type": "Answer", "text": "按住快捷鍵時錄到的聲音，會直接從你的電腦送到你選的辨識服務（OpenAI 或 BytePlus），不經過我們的伺服器，我們也收不到。那家服務怎麼保存、會不會拿去訓練，依該服務的條款而定。公司或客戶的內容，請先確認可以交給第三方處理。"}}, {"@type": "Question", "name": "API key 存在哪？會不會被打包或上傳？", "acceptedAnswer": {"@type": "Answer", "text": "只存在你的電腦：~/.config/echoic-voice/openai-key、byteplus-key，權限設成只有你自己讀得到。App 本身不含任何 key；key 只會在辨識時送給它所屬的服務。log 只記長度與耗時，不記你講的內容。"}}, {"@type": "Question", "name": "OpenAI 和豆包差在哪？", "acceptedAnswer": {"@type": "Answer", "text": "我們用同一批錄音比過：兩邊選字準確度差不多。豆包（Seed-ASR 2.0）比較貼近原話、放開後出字較快（約 0.3 秒）；OpenAI（gpt-transcribe）句子比較順，偶爾會幫你改個字（約 0.8 秒）。兩把 key 都填，就能用 ⌃⌥, 隨時切換比較。"}}, {"@type": "Question", "name": "沒有自動貼上，要自己按 ⌘V？", "acceptedAnswer": {"@type": "Answer", "text": "要自動貼上，macOS 需要「輔助使用」權限：系統設定 › 隱私權與安全性 › 輔助使用，打開「Echoic 輸入法」。沒打開時文字會放在剪貼簿，提示條會告訴你。"}}, {"@type": "Question", "name": "快捷鍵可以改嗎？", "acceptedAnswer": {"@type": "Answer", "text": "目前固定是按住 ⌃⌥/（Control＋Option＋斜線）講話、Esc 取消、⌃⌥, 切換引擎。"}}, {"@type": "Question", "name": "為什麼 macOS 說「無法打開」？", "acceptedAnswer": {"@type": "Answer", "text": "和 Echoic 本機版一樣，這個 App 沒有付費的 Apple 公證，用瀏覽器下載的版本第一次打開會被擋。按「完成」，再照下面三種做法挑一種；之後更新不用再做。"}}, {"@type": "Question", "name": "可以離線用嗎？", "acceptedAnswer": {"@type": "Answer", "text": "不行，辨識在雲端做，要有網路。想完全離線，請用 Echoic 本機版做會後逐字稿。"}}]}</script>
+</head>
+<body>
+<header class="top"><div class="wrap bar">
+<a class="logo" href="/" aria-label="Echoic 本機版 首頁"><span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>Echoic <b>本機版</b></span></a>
+<nav><a href="/voice/">輸入法</a><a href="/guide/">安裝教學</a><a href="/faq/">常見問題</a><a href="https://github.com/dvdmaru/echoic-local">GitHub</a></nav>
+</div></header>
+<main class="wrap doc">
+<p class="eyebrow">免費・Mac・語音輸入</p>
+<h1>Echoic 輸入法：<br>按住講話，<span class="hl">放開就打好字</span>。</h1>
+<p class="lead">在任何 App 裡按住 <kbd>⌃</kbd><kbd>⌥</kbd><kbd>/</kbd> 講話，放開後台灣正體文字直接貼到游標位置。辨識用你自己的 OpenAI 或豆包（BytePlus）API key，邊講邊送，放開後約 0.3～1 秒出字。</p>
+<p class="cta"><a class="btn" href="/voice/EchoicVoice-mac-arm64.zip" data-dl="voice-mac">下載輸入法<small>Apple Silicon・macOS 13 以上・免費・0.2.1</small></a></p>
+<p class="small">和 Echoic 本機版不同：輸入法的辨識在雲端，講話時聲音會送到你選的服務。App 不含任何 API key，也不經過我們的伺服器。</p>
+
+<h2>用起來是這樣</h2>
+<ul>
+<li><strong>按住 ⌃⌥/ 講話</strong>：螢幕下方出現提示條（紅點＋音量），放開後顯示「辨識中」，接著文字貼進去。</li>
+<li><strong>Esc</strong>：講到一半想放棄。</li>
+<li><strong>⌃⌥,</strong>：在 OpenAI 和豆包之間切換；選單列會顯示「〰 OpenAI」或「〰 豆包」。</li>
+<li><strong>台灣正體</strong>：兩個引擎都直接出正體；萬一冒出簡體字，會自動轉回來。</li>
+</ul>
+
+<h2 id="install">安裝</h2>
+<ol>
+<li><a href="/voice/EchoicVoice-mac-arm64.zip" data-dl="voice-mac">下載 EchoicVoice-mac-arm64.zip</a>，雙擊解壓縮，把「Echoic 輸入法」拖到「應用程式」。</li>
+<li>第一次打開被擋（「無法打開」）：按<strong>「完成」</strong>，到「系統設定 › 隱私權與安全性」往下捲，按<strong>「仍要打開」</strong>。或用下面的指令。</li>
+<li>允許<strong>麥克風</strong>；再到「系統設定 › 隱私權與安全性 › <strong>輔助使用</strong>」打開「Echoic 輸入法」，才能自動貼上。</li>
+<li>設定視窗會自己跳出來：貼上你的 API key，按<strong>「測試目前引擎」</strong>，看到 ✓ 就能用了。要開機自動啟動，在同一個視窗勾選。</li>
+</ol>
+<p>不想經過瀏覽器（不會被擋）：打開「終端機」，貼上這行：</p>
+<pre>curl -fsSL https://echoic.twtools.cc/voice/install.sh | bash</pre>
+<p class="small">這支<a href="/voice/install.sh">安裝腳本</a>只會下載安裝檔、比對 SHA-256（<a href="/voice/SHA256SUMS.txt">SHA256SUMS.txt</a>）、複製到「應用程式」、打開。已經裝進「應用程式」才被擋，也可以用：<code>xattr -dr com.apple.quarantine "/Applications/Echoic 輸入法.app"</code></p>
+
+<h2 id="openai">申請 OpenAI API key（最簡單）</h2>
+<ol>
+<li>到 <a href="https://platform.openai.com/api-keys">platform.openai.com/api-keys</a> 登入（和 ChatGPT 訂閱是分開計費的，要另外在 Billing 儲值）。</li>
+<li>按「Create new secret key」，複製 <code>sk-</code> 開頭那串。</li>
+<li>貼到輸入法的「設定… › OpenAI」，按「測試目前引擎」。</li>
+</ol>
+
+<h2 id="byteplus">申請豆包 Seed-ASR（BytePlus）</h2>
+<p>豆包語音辨識在海外由 BytePlus（字節跳動的國際雲）提供；火山引擎（中國版）不收海外用戶。</p>
+<ol>
+<li>到 <a href="https://console.byteplus.com/">BytePlus 控制台</a>註冊並完成付款設定。</li>
+<li>進入語音服務（Seed Speech）的服務開通頁，開通<strong>串流語音辨識 2.0（Streaming ASR 2.0）</strong>。沒開通的話，測試會說「資源未授權」。</li>
+<li>在同一個控制台的 API Key 頁建立一把 key，複製下來。</li>
+<li>貼到輸入法的「設定… › 豆包（BytePlus）」，引擎選豆包，按「測試目前引擎」。</li>
+</ol>
+
+<h2>先說清楚做不到的</h2>
+<ul>
+<li>目前只有 Apple Silicon（M1 以後）Mac、macOS 13 以上。</li>
+<li>要有網路；辨識費用依你自己的 OpenAI／BytePlus 帳戶計。</li>
+<li>快捷鍵目前不能改；沒有自動更新，新版請回這頁下載（App 選單有「下載新版…」）。</li>
+<li>App 沒有付費的 Apple 公證，第一次打開要多做一步。</li>
+</ul>
+
+<h2>常見問題</h2><div class="faq"><details><summary>要錢嗎？</summary><p>App 免費。語音辨識是你自己的 OpenAI 或 BytePlus 帳戶在付費，依各家公布的語音辨識計價；講幾句話通常只是很小的金額，請以你帳戶的用量頁為準。</p></details><details><summary>我講的話會送到哪裡？</summary><p>按住快捷鍵時錄到的聲音，會直接從你的電腦送到你選的辨識服務（OpenAI 或 BytePlus），不經過我們的伺服器，我們也收不到。那家服務怎麼保存、會不會拿去訓練，依該服務的條款而定。公司或客戶的內容，請先確認可以交給第三方處理。</p></details><details><summary>API key 存在哪？會不會被打包或上傳？</summary><p>只存在你的電腦：~/.config/echoic-voice/openai-key、byteplus-key，權限設成只有你自己讀得到。App 本身不含任何 key；key 只會在辨識時送給它所屬的服務。log 只記長度與耗時，不記你講的內容。</p></details><details><summary>OpenAI 和豆包差在哪？</summary><p>我們用同一批錄音比過：兩邊選字準確度差不多。豆包（Seed-ASR 2.0）比較貼近原話、放開後出字較快（約 0.3 秒）；OpenAI（gpt-transcribe）句子比較順，偶爾會幫你改個字（約 0.8 秒）。兩把 key 都填，就能用 ⌃⌥, 隨時切換比較。</p></details><details><summary>沒有自動貼上，要自己按 ⌘V？</summary><p>要自動貼上，macOS 需要「輔助使用」權限：系統設定 › 隱私權與安全性 › 輔助使用，打開「Echoic 輸入法」。沒打開時文字會放在剪貼簿，提示條會告訴你。</p></details><details><summary>快捷鍵可以改嗎？</summary><p>目前固定是按住 ⌃⌥/（Control＋Option＋斜線）講話、Esc 取消、⌃⌥, 切換引擎。</p></details><details><summary>為什麼 macOS 說「無法打開」？</summary><p>和 Echoic 本機版一樣，這個 App 沒有付費的 Apple 公證，用瀏覽器下載的版本第一次打開會被擋。按「完成」，再照下面三種做法挑一種；之後更新不用再做。</p></details><details><summary>可以離線用嗎？</summary><p>不行，辨識在雲端做，要有網路。想完全離線，請用 Echoic 本機版做會後逐字稿。</p></details></div>
+<p class="cta"><a class="btn" href="/voice/EchoicVoice-mac-arm64.zip" data-dl="voice-mac">下載輸入法<small>Apple Silicon・macOS 13 以上・免費・0.2.1</small></a></p>
+<p class="small">版本 0.2.1（2026-11-19）。想把會議錄音在自己電腦上轉成逐字稿：<a href="/">Echoic 本機版</a>。</p>
+</main>
+<footer class="foot"><div class="wrap">
+<p><strong>Echoic 本機版</strong>：免費開源（MIT）的會議逐字稿工具。語音辨識使用 whisper.cpp、說話人分離使用 sherpa-onnx，都在你的電腦上執行。</p>
+<p>錄音前請先取得與會者同意。逐字稿與摘要可能有錯，重要內容請回聽原音。</p>
+<p><a href="https://github.com/dvdmaru/echoic-local">原始碼</a>｜<a href="https://github.com/dvdmaru/echoic-local/blob/main/THIRD_PARTY.md">第三方授權</a>｜<a href="https://kandong.twtools.cc/">姊妹工具：看懂 KanDong</a>｜<a href="https://twtools.cc/">twtools.cc</a></p>
+</div></footer>
+</body>
+</html>
