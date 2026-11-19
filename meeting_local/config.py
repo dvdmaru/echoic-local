@@ -132,7 +132,7 @@ VAD_MODEL_SHA256 = "2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb
 VAD_MODEL_SIZE = 885_098
 
 
-def download_whisper_models(progress=None) -> None:
+def download_whisper_models(progress=None, on_bytes=None) -> None:
     """下載缺的模型到共用資料夾；已經有（含看懂下載過的 q5_0 版）就跳過。"""
     global WHISPER_MODEL, VAD_MODEL
     if not WHISPER_MODEL.is_file():
@@ -140,10 +140,11 @@ def download_whisper_models(progress=None) -> None:
         known = {e.file for e in _models.entries()}
         target = WHISPER_MODEL if WHISPER_MODEL.name in known else SHARED_MODELS_DIR / WHISPER_DOWNLOAD_FILE
         e = _models.entry(target.name)
-        WHISPER_MODEL = _models.download(e.url, target, e.sha256, e.size, "語音辨識模型", progress)
+        WHISPER_MODEL = _models.download(e.url, target, e.sha256, e.size, "語音辨識模型", progress,
+                                         on_bytes=on_bytes)
     if not VAD_MODEL.is_file():
         VAD_MODEL = _models.download(VAD_MODEL_URL, SHARED_MODELS_DIR / VAD_MODEL_FILENAME, VAD_MODEL_SHA256,
-                                     VAD_MODEL_SIZE, "VAD 模型", progress)
+                                     VAD_MODEL_SIZE, "VAD 模型", progress, on_bytes=on_bytes)
     if progress:
         progress("✅ 模型已就緒")
 

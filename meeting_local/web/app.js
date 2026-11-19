@@ -148,14 +148,29 @@ function renderSide() {
 function renderStatus() {
   const s = S.boot.settings;
   const engine = s.stt_engine === 'api' ? `線上（${esc(s.stt_api_host)}）` : `本機 whisper${s.local_speed === 'background' ? '（背景模式）' : ''}`;
-  const busy = S.busy ? `<a class="busy" id="busylink">⏳ ${esc({ pipeline: '轉逐字稿中', summary: '產生摘要中', models: '下載模型中', update: '更新中', project: 'Claude 整理進度中' }[S.busy] || S.busy)}…</a>` : '';
+  const busy = S.busy ? `<a class="busy" id="busylink">⏳ ${esc({ pipeline: '轉逐字稿中', summary: '產生摘要中', models: '下載模型中', update: '更新中', project: 'Claude 整理進度中' }[S.busy] || S.busy)}…${pctText()}</a>` : '';
   $('#status').innerHTML = `<span>🔒 存在這台 Mac</span><span>語音辨識：${engine}</span>
     <span>摘要：${S.boot.has_claude ? (s.auto_summary ? '你的 Claude（自動）' : '你的 Claude（手動）') : '沒裝 Claude Code'}</span>
     <span>AI 助理讀取：${s.mcp_enabled ? '開' : '關'}</span>${busy}<span class="grow">v${esc(S.boot.version)}</span>`;
   const bl = $('#busylink'); if (bl) bl.onclick = () => showLog();
 }
+function pctText() {
+  const p = S.progress; return p && p.total ? ` ${Math.min(100, Math.floor(p.done * 100 / p.total))}%` : '';
+}
+function mb(n) { return (n / 1048576).toFixed(n >= 104857600 ? 0 : 1); }
+function progHtml() {
+  const p = S.progress; if (!p) return '';
+  const size = p.total ? `${mb(p.done)} / ${mb(p.total)} MB` : `${mb(p.done)} MB`;
+  return `<div class="prog"><div class="prog-t"><span>${esc(p.label)}</span><span>${size}${esc(pctText())}</span></div>
+    <progress${p.total ? ` max="${p.total}" value="${p.done}"` : ''}></progress></div>`;
+}
+function renderProg() {
+  const w = $('#dprog'); if (w) w.innerHTML = progHtml();
+  const bl = $('#busylink'); if (bl) bl.textContent = bl.textContent.replace(/…( \d+%)?$/, '…' + pctText());
+}
 function showLog() {
-  dialog(`<div class="dh">工作紀錄</div><div class="db"><div class="logbox" id="dlog">${esc(S.log.slice(-400).join('\n'))}</div></div>
+  const upd = S.busy === 'update' ? '<p class="note" style="margin:0 0 8px">更新中：下載、比對完會自動關閉並重開，不用再按任何按鈕。中途關掉 App 也沒關係，舊版不會動。</p>' : '';
+  dialog(`<div class="dh">工作紀錄</div><div class="db">${upd}<div id="dprog">${progHtml()}</div><div class="logbox" id="dlog">${esc(S.log.slice(-400).join('\n'))}</div></div>
     <div class="df"><button class="btn" data-close type="button">關閉</button></div>`);
   const l = $('#dlog'); l.scrollTop = l.scrollHeight;
 }
@@ -623,8 +638,12 @@ async function renderSettings() {
     if (!r.newer) { $('#uMsg').textContent = `已經是最新版（${r.version}）`; return; }
     $('#uMsg').innerHTML = `有新版 ${esc(r.version)} <button class="btn primary" id="uGo" type="button">更新到 ${esc(r.version)}</button>`;
     $('#uGo').onclick = () => confirmDialog(`更新到 ${esc(r.version)}？`, '會從 GitHub 下載新版（約 55 MB）、比對官方 SHA-256，再關閉 App、換成新版並自動重開。會議資料、設定、模型都不會動。', '更新',
-      async () => { const x = await api('do_update'); if (x.ok === false) toast(x.error, 5000); else { S.busy = 'update'; renderStatus(); showLog(); } });
+      async () => {
+        const x = await api('do_update'); if (x.ok === false) return toast(x.error, 5000);
+        S.busy = 'update'; for (const b of ['#uGo', '#uChk']) { const el = $(b); if (el) el.disabled = true; } renderStatus(); showLog();
+      });
   };
+  if (S.busy === 'update') $('#uChk').disabled = true;
   $('#sFolder').onclick = () => api('reveal', '', '');
 }
 
@@ -734,9 +753,10 @@ async function pollTick() {
       S.log.push(...p.log); if (S.log.length > 3000) S.log.splice(0, 1000);
       for (const id of ['#mlog', '#rlog', '#dlog']) { const el = $(id); if (el) { el.textContent = S.log.slice(id === '#dlog' ? -400 : -80).join('\n'); el.scrollTop = el.scrollHeight; } }
     }
-    const wasBusy = S.busy;
-    S.busy = p.busy; S.busyJob = p.busy_job;
+    const wasBusy = S.busy, oldProg = JSON.stringify(S.progress || null);
+    S.busy = p.busy; S.busyJob = p.busy_job; S.progress = p.progress || null;
     if (wasBusy !== S.busy) renderStatus();
+    else if (JSON.stringify(S.progress) !== oldProg) renderProg();
     if (p.rec) {
       const first = !S.recLive; S.recLive = p.rec;
       const sc = $('#sideclock'); if (sc) sc.textContent = fmtClock(p.rec.elapsed); else if (first) renderSide();

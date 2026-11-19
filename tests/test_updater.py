@@ -46,9 +46,10 @@ def _fake_curl(payload):
 def test_latest_release_reads_assets():
     rel = updater.latest_release(run=_fake_curl({
         "tag_name": "v0.5.0", "html_url": "https://x/rel",
-        "assets": [{"name": updater.DMG, "browser_download_url": "https://x/dmg"},
+        "assets": [{"name": updater.DMG, "browser_download_url": "https://x/dmg", "size": 57_000_000},
                    {"name": updater.SUMS, "browser_download_url": "https://x/sums"}]}))
-    assert rel == {"version": "0.5.0", "dmg": "https://x/dmg", "sums": "https://x/sums", "page": "https://x/rel"}
+    assert rel == {"version": "0.5.0", "dmg": "https://x/dmg", "sums": "https://x/sums", "page": "https://x/rel",
+                   "size": 57_000_000}
 
 
 def test_latest_release_without_checksums_refuses():
@@ -119,7 +120,10 @@ def test_prepare_downloads_verifies_and_stages(tmp_path):
         bundle = tmp_path / "Echoic 本機版.app"
         bundle.mkdir()
         rel = {"version": "test", "dmg": f"{base}/{updater.DMG}", "sums": f"{base}/{updater.SUMS}", "page": base}
-        new = updater.prepare(rel, bundle, log=lambda t: None)
+        seen = []
+        new = updater.prepare(dict(rel, size=_DMG.stat().st_size), bundle, log=lambda t: None,
+                              on_bytes=lambda d, t: seen.append((d, t)))
+        assert seen and seen[-1] == (_DMG.stat().st_size, _DMG.stat().st_size)  # 下載完回報 100%
         assert new == updater.staged_path(bundle) and (new / "Contents" / "Info.plist").exists()
         q = subprocess.run(["xattr", "-p", "com.apple.quarantine", str(new)], capture_output=True)
         assert q.returncode != 0  # 沒有隔離標記＝打開時不會被 Gatekeeper 擋

@@ -18,6 +18,7 @@ import time
 from pathlib import Path
 
 from . import config
+from .models import curl_to_file
 
 REPO = "dvdmaru/echoic-local"
 DMG = "EchoicLocal-mac-arm64.dmg"
@@ -58,8 +59,10 @@ def latest_release(run=subprocess.run) -> dict:
     assets = {a.get("name"): a.get("browser_download_url") for a in data.get("assets") or []}
     if DMG not in assets or SUMS not in assets:
         raise RuntimeError("最新版的 Release 缺安裝檔或 SHA256SUMS.txt，先不更新")
+    size = next((a.get("size") for a in data.get("assets") or [] if a.get("name") == DMG), None)
     return {"version": str(data.get("tag_name") or "").lstrip("v"), "dmg": assets[DMG], "sums": assets[SUMS],
-            "page": data.get("html_url") or f"https://github.com/{REPO}/releases/latest"}
+            "page": data.get("html_url") or f"https://github.com/{REPO}/releases/latest",
+            "size": size if isinstance(size, int) and size > 0 else None}
 
 
 def expected_sha(sums_text: str, name: str = DMG) -> str | None:
@@ -82,19 +85,22 @@ def staged_path(bundle: Path) -> Path:
     return bundle.parent / ".echoic-local-update.app"
 
 
-def prepare(release: dict, bundle: Path, log=print, run=subprocess.run) -> Path:
+def prepare(release: dict, bundle: Path, log=print, run=subprocess.run, on_bytes=None) -> Path:
     """下載、比對、把新版複製到舊版旁邊（還沒換掉舊版）。回新版的路徑。"""
     work = Path(tempfile.mkdtemp(prefix="echoic-update-"))
     mnt: str | None = None
     try:
         dmg = work / DMG
         log(f"⬇️ 下載 {release['version']}（約 55 MB）…")
-        dmg.write_bytes(_curl([release["dmg"]], run=run))
+        rc, err = curl_to_file(["--max-time", "900", release["dmg"]], dmg, release.get("size"), on_bytes)
+        if rc:
+            raise RuntimeError(f"連不上 GitHub（curl rc={rc}）：{err.strip()[:200]}")
         want = expected_sha(_curl([release["sums"]], run=run, timeout=30).decode("utf-8", "replace"))
         got = sha256(dmg)
         if not want or want != got:
             raise RuntimeError("下載的安裝檔和官方公布的 SHA-256 不符，已停止更新（舊版沒動）")
         log(f"✅ SHA-256 相符：{got[:12]}…")
+        log("📦 解開新版，準備換版…")
         out = run(["hdiutil", "attach", "-nobrowse", "-readonly", "-noautoopen", str(dmg)],
                   capture_output=True, text=True, stdin=subprocess.DEVNULL)
         vols = [ln.split("\t")[-1].strip() for ln in out.stdout.splitlines() if "/Volumes/" in ln]

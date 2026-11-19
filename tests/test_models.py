@@ -1,4 +1,5 @@
 import hashlib
+import subprocess
 import os
 import time
 
@@ -77,3 +78,36 @@ def test_download_verifies_sha256(tmp_path):
     assert not target.exists() and not (target.parent / "m.bin.part").exists()
     assert models.download(src.as_uri(), target, good, 11, "測試模型") == target
     assert target.read_bytes() == b"hello model"
+
+
+def test_download_reports_bytes_for_progress_bar(tmp_path):
+    src = tmp_path / "src.bin"
+    src.write_bytes(b"x" * 4096)
+    seen = []
+    models.download(src.as_uri(), tmp_path / "out" / "m.bin", None, 4096, "測試模型",
+                    on_bytes=lambda d, t: seen.append((d, t)))
+    assert seen[-1] == (4096, 4096)
+
+
+def test_curl_to_file_ticks_while_running(tmp_path):
+    """curl 還沒結束時每個 tick 都回報一次目前大小（假的 Popen：前兩次逾時、第三次結束）。"""
+    out = tmp_path / "f.bin"
+
+    class FakeProc:
+        returncode = None
+        calls = 0
+
+        def __init__(self, *a, **k):
+            pass
+
+        def communicate(self, timeout=None):
+            FakeProc.calls += 1
+            out.write_bytes(b"x" * (100 * FakeProc.calls))
+            if FakeProc.calls < 3:
+                raise subprocess.TimeoutExpired("curl", timeout)
+            self.returncode = 0
+            return None, ""
+
+    seen = []
+    rc, _ = models.curl_to_file(["file:///x"], out, 300, lambda d, t: seen.append((d, t)), tick=0, popen=FakeProc)
+    assert rc == 0 and seen == [(100, 300), (200, 300), (300, 300)]

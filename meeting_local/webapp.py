@@ -56,6 +56,7 @@ class Api:
         self._busy_job: str = ""
         self._last_done: dict | None = None
         self._release: dict | None = None
+        self._progress: dict | None = None   # 下載進度：{"label", "done", "total"}，給畫面畫進度條
         self._rec_labels: dict = {}
 
     # ------------------------------------------------------------ 共用
@@ -68,6 +69,12 @@ class Api:
                     self._log.append(line.rstrip())
                     if len(self._log) > 4000:
                         del self._log[:1000]
+
+    def _bytes(self, label: str):
+        """回一個 on_bytes(已下載, 總量) 回呼，把下載進度放進 poll 給畫面。"""
+        def cb(done: int, total: int | None) -> None:
+            self._progress = {"label": label, "done": int(done), "total": int(total) if total else None}
+        return cb
 
     def _meetings(self) -> list[library.Meeting]:
         return library.load_meetings(self._out_root)
@@ -84,7 +91,7 @@ class Api:
     def _start(self, name: str, job: str, fn) -> None:
         if self._busy:
             raise RuntimeError("另一件事還在跑，等它做完")
-        self._busy, self._busy_job, self._last_done = name, job, None
+        self._busy, self._busy_job, self._last_done, self._progress = name, job, None, None
 
         def run():
             result = {"step": name, "job": job, "ok": False}
@@ -94,7 +101,7 @@ class Api:
                 result["error"] = str(exc)
                 self._say(f"❌ {exc}")
             finally:
-                self._busy, self._busy_job, self._last_done = "", "", result
+                self._busy, self._busy_job, self._last_done, self._progress = "", "", result, None
 
         threading.Thread(target=run, daemon=True).start()
 
@@ -478,7 +485,7 @@ class Api:
     @_expected
     def download_models(self) -> dict:
         def work():
-            config.download_whisper_models(self._say)
+            config.download_whisper_models(self._say, on_bytes=self._bytes("下載語音辨識模型"))
             self._say("✅ 語音辨識模型已就緒")
             return {"ok": True}
 
@@ -509,7 +516,8 @@ class Api:
         rel = self._release or updater.latest_release()
 
         def work():
-            new = updater.prepare(rel, bundle, log=self._say)
+            new = updater.prepare(rel, bundle, log=self._say, on_bytes=self._bytes(f"下載 {rel['version']}"))
+            self._progress = None
             self._say("✅ 新版準備好了，App 會關閉並自動重開。")
             updater.launch_swap(bundle, new)
             threading.Timer(0.8, lambda: self._window and self._window.destroy()).start()
@@ -548,7 +556,7 @@ class Api:
                    "job": self._rec.job.name if self._rec.job else ""}
         done, self._last_done = self._last_done, None
         return {"cursor": new_cursor, "log": lines, "rec": rec, "busy": self._busy, "busy_job": self._busy_job,
-                "done": done}
+                "progress": self._progress, "done": done}
 
     def js_error(self, msg: str) -> None:
         """畫面的 JS 錯誤：記進工作紀錄與 stderr，出事查得到。"""

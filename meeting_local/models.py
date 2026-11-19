@@ -103,8 +103,25 @@ def part_in_use(partial: Path, now: float | None = None) -> bool:
     return (now or time.time()) - mtime < ACTIVE_PART_SECONDS
 
 
+def curl_to_file(args: list[str], out: Path, total: int | None = None, on_bytes=None,
+                 tick: float = 0.5, popen=subprocess.Popen) -> tuple[int, str]:
+    """curl 寫進 out；下載中每 tick 秒回報一次 on_bytes(已下載, 總量或 None)，給畫面畫進度條。回 (結束碼, stderr)。"""
+    proc = popen(["curl", "-fL", "-sS", *args, "-o", str(out)],
+                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+    while True:
+        try:
+            _, err = proc.communicate(timeout=tick)
+            break
+        except subprocess.TimeoutExpired:
+            if on_bytes:
+                on_bytes(out.stat().st_size if out.exists() else 0, total)
+    if on_bytes and proc.returncode == 0:
+        on_bytes(out.stat().st_size if out.exists() else 0, total)
+    return proc.returncode, err or ""
+
+
 def download(url: str, target: Path, sha256: str | None, size: int | None,
-             label: str, progress=None, min_bytes: int = 0) -> Path:
+             label: str, progress=None, min_bytes: int = 0, on_bytes=None) -> Path:
     """curl 續傳下載到 `<target>.part`，驗大小與 SHA256 後才改名。不用 Python HTTPS，避開本機 CA bundle 問題。"""
     if target.is_file() and (size is None or target.stat().st_size == size):
         return target
@@ -118,12 +135,9 @@ def download(url: str, target: Path, sha256: str | None, size: int | None,
         raise RuntimeError(f"磁碟空間不夠下載{label}：還需要 {need / 1e9:.2f} GB，只剩 {free / 1e9:.2f} GB。")
     if progress:
         progress(f"⬇️ 下載{label}…（存到 {target.parent}）")
-    proc = subprocess.run(
-        ["curl", "-fL", "--retry", "3", "--continue-at", "-", "-o", str(partial), url],
-        text=True, capture_output=True, stdin=subprocess.DEVNULL,
-    )
-    if proc.returncode:
-        raise RuntimeError(f"{label}下載失敗：{proc.stderr.strip()[-500:]}")
+    rc, err = curl_to_file(["--retry", "3", "--continue-at", "-", url], partial, size, on_bytes)
+    if rc:
+        raise RuntimeError(f"{label}下載失敗：{err.strip()[-500:]}")
     got = partial.stat().st_size if partial.exists() else 0
     if (size is not None and got != size) or got < min_bytes:
         raise RuntimeError(f"{label}下載不完整（{got:,} bytes），請重新嘗試")
