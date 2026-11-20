@@ -72,8 +72,18 @@ WHISPER_THREADS_BACKGROUND = int(os.environ.get("MEETING_LOCAL_WHISPER_THREADS_B
 DIARIZE_THREADS = int(os.environ.get("MEETING_LOCAL_DIARIZE_THREADS", "2"))
 BACKGROUND_NICE = int(os.environ.get("MEETING_LOCAL_BACKGROUND_NICE", "10"))
 WHISPER_LANGUAGE = os.environ.get("MEETING_LOCAL_LANGUAGE", "zh")
+# 每場會議的語言（錄音時選、重轉時可改，記在該場 run.json 的 language）。沒選過的照 WHISPER_LANGUAGE。
+# 2026-11-20 實例：全英文的 ZEISS 會議被指定成中文，線上 whisper-1 整段翻成中文又鬼打牆（87% 幻覺），
+# 本機 whisper 同樣會把英文翻成中文；指定英文重轉後幻覺降到 1.9%。不用自動偵測：會議開頭常有幾分鐘沒人講話，會判錯。
+LANGUAGES = {"zh": "中文", "en": "英文"}
 # 初始提示：把 whisper 往「台灣、繁體」推；同音專名仍要靠事後的專名候選表。
 DEFAULT_PROMPT = os.environ.get("MEETING_LOCAL_PROMPT", "以下是台灣的會議錄音，請以繁體中文逐字記錄。")
+DEFAULT_PROMPTS = {"zh": DEFAULT_PROMPT, "en": "This is a business meeting recording in English."}
+
+
+def default_prompt(language: str) -> str:
+    """該語言的 whisper 初始提示；中文提示配英文會議會把 whisper 往翻譯推。"""
+    return DEFAULT_PROMPTS.get(language, DEFAULT_PROMPT)
 # whisper 初始提示的長度上限（字）：whisper 只保留 prompt 的最後約 224 個 token，塞太多反而把開頭擠掉。
 WHISPER_PROMPT_MAX_CHARS = int(os.environ.get("MEETING_LOCAL_PROMPT_MAX", "180"))
 # VAD 預設關：2026-10-05 回看三週會議，錄音偏小聲時 VAD 把講話當靜音整段丟掉（10/04 關掉多拿回 26% 字數、

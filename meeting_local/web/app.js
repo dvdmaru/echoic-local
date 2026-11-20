@@ -4,7 +4,7 @@
 const S = {
   boot: null, tree: null, view: 'list', mid: null, tab: 'summary', file: null, meeting: null,
   list: { labels: {}, query: '', from: '', to: '', transcript: true }, sel: new Set(), expanded: new Set(),
-  project: null, rec: { phase: 'setup', source: null, labels: {}, name: '', attendees: '', notes: [], ctx: null, result: null, job: '' },
+  project: null, rec: { phase: 'setup', source: null, language: 'zh', labels: {}, name: '', attendees: '', notes: [], ctx: null, result: null, job: '' },
   cursor: 0, log: [], busy: '', busyJob: '', recLive: null,
 };
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -250,14 +250,15 @@ function renderMeeting() {
   const chips = [`<span class="chip">📅 ${esc(m.date)} ${esc(m.time)}${m.duration_min ? ' · ' + Math.round(m.duration_min) + ' 分' : ''}</span>`,
     ...cats.map((c) => m.labels[c] ? `<button class="chip" type="button" data-lab="${esc(c)}"><span class="sw" style="background:${c === cats[0] ? swatch(m.labels[c]) : '#3a4945'}"></span>${esc(m.labels[c])}</button>` : ''),
     m.attendees.length ? `<span class="chip">👥 ${esc(m.attendees.slice(0, 3).join('、'))}${m.attendees.length > 3 ? ' +' + (m.attendees.length - 3) : ''}</span>` : '',
+    m.language && m.language !== 'zh' ? `<span class="chip">🌐 ${esc((LANGS.find(([v]) => v === m.language) || [, m.language])[1])}</span>` : '',
     m.private ? '<span class="chip">🔒 不給 AI 助理</span>' : ''].join('');
   const busyHere = S.busy && S.busyJob === m.id;
   const hasTr = m.transcript.length > 0, hasSum = !!m.summary_html;
   const failed = m.stt_failed;
   const failBox = failed ? `<div class="box warn" style="margin-top:14px"><div class="h">線上語音辨識失敗</div>
       ${esc(failed.host || '線上服務')} 回來的結果有 ${Math.round((failed.coverage || 0) * 100)}% 是重複的幻覺，所以沒有拿去做逐字稿和摘要。
-      常見原因：線上會議只錄了麥克風，對方的聲音是隔著喇叭收進來的（下次錄線上會議請選「麥克風＋系統音」）。
-      錄音本身通常沒問題，可以用本機重轉：只這一場，不改你的設定，錄音不會再上傳。
+      常見原因：① 會議語言選錯（例如英文會議選成中文，會被翻成中文又鬼打牆）；② 線上會議只錄了麥克風，對方的聲音是隔著喇叭收進來的（下次錄線上會議請選「麥克風＋系統音」）。
+      錄音本身通常沒問題，可以用本機重轉，重轉時可以改會議語言：只這一場，不改你的設定，錄音不會再上傳。
       <div style="margin-top:10px"><button class="btn hot" id="bLocal" type="button"${S.busy ? ' disabled' : ''}>用本機重轉${S.boot.settings.auto_summary && S.boot.has_claude ? '＋摘要' : ''}</button></div></div>`
     : m.stt_partial ? `<div class="box warn" style="margin-top:14px"><div class="h">部分內容可能遺失</div>
       線上語音辨識有 ${Math.round(m.stt_partial * 100)}% 的時間是重複的幻覺（逐字稿裡標「幻覺，已略」的地方），那幾段的內容沒有轉出來。
@@ -279,6 +280,7 @@ function renderMeeting() {
   $('#view').innerHTML = `<div class="page"><article class="article">
       <h1 class="title">${esc(m.title)}</h1>
       <div class="chips">${chips}<span class="spacer"></span>${action}
+        ${m.has_audio && hasTr && !failed ? `<button class="btn" id="bRe" type="button"${S.busy ? ' disabled' : ''}>重轉…</button>` : ''}
         <button class="btn" id="bLab" type="button">分類…</button>
         <button class="btn" id="bExp1" type="button">${ICON.down}匯出</button>
         <button class="btn" id="bFind" type="button">在 Finder 顯示</button></div>
@@ -330,7 +332,8 @@ function wireMeeting(m) {
   $('#bExp1').onclick = () => exportDialog([m.id], m.title);
   $('#bFind').onclick = () => api('reveal', m.id, '');
   if ($('#bRun')) $('#bRun').onclick = () => runPipeline(m.id);
-  if ($('#bLocal')) $('#bLocal').onclick = () => runPipeline(m.id, 'local');
+  if ($('#bLocal')) $('#bLocal').onclick = () => rerunDialog(m, 'local');
+  if ($('#bRe')) $('#bRe').onclick = () => rerunDialog(m);
   if ($('#bSum')) $('#bSum').onclick = async () => { const r = await api('run_summary', m.id); if (r.ok === false) toast(r.error); else { S.busy = 'summary'; S.busyJob = m.id; renderMeeting(); } };
   $$('#view [data-t]').forEach((b) => b.onclick = () => seek(tsToSec(b.dataset.t)));
   $$('#sum li.task').forEach((li, i) => {
@@ -373,8 +376,22 @@ async function showFile(m, name) {
   $('#fOpen').onclick = () => api('open_external', m.id, name);
   $$('[data-t]', box).forEach((b) => b.onclick = () => seek(tsToSec(b.dataset.t)));
 }
-async function runPipeline(id, engine = '') {
-  const r = await api('run_pipeline', id, null, '', engine);
+const LANGS = [['zh', '中文'], ['en', '英文']];
+const langRadios = (name, cur) => `<div class="radios">${LANGS.map(([v, l]) => `<label class="radio${cur === v ? ' on' : ''}"><input type="radio" name="${name}" value="${v}"${cur === v ? ' checked' : ''}>${l}</label>`).join('')}</div>`;
+// 重轉：選這場的語言（英文會議選成中文會被翻成中文、容易整段幻覺，2026-11-20 實例）。engine＝'local' 只這一場用本機，空字串照設定。
+function rerunDialog(m, engine = '') {
+  const s = S.boot.settings, hasSum = !!m.summary_html;
+  const where = engine === 'local' || s.stt_engine !== 'api' ? '本機（錄音不會上傳）' : '線上 ' + esc(s.stt_api_host) + '（會上傳錄音）';
+  let lang = m.language || 'zh';
+  const d = dialog(`<div class="dh">重轉這場</div><div class="db">
+    <div class="form"><label>會議語言</label>${langRadios('rl', lang)}<label>辨識</label><div>${where}</div></div>
+    <p class="note">選這場實際講的語言。英文會議選成中文，會被翻成中文、容易整段鬼打牆。<br>會覆蓋這場現在的逐字稿${hasSum ? '和摘要（摘要裡勾過的待辦也會重來）' : ''}；錄音不會動，也不改你的設定。</p></div>
+    <div class="df"><button class="btn" data-close type="button">取消</button><button class="btn primary" id="rrOk" type="button">重轉${s.auto_summary && S.boot.has_claude ? '＋摘要' : ''}</button></div>`, 'small');
+  $$('input[name=rl]', d).forEach((r) => r.onchange = () => { lang = r.value; $$('label.radio', d).forEach((x) => x.classList.toggle('on', x.contains(r))); });
+  $('#rrOk', d).onclick = () => { closeDialog(); runPipeline(m.id, engine, lang); };
+}
+async function runPipeline(id, engine = '', language = '') {
+  const r = await api('run_pipeline', id, null, '', engine, language);
   if (r.ok === false) return toast(r.error);
   S.busy = 'pipeline'; S.busyJob = id; renderStatus(); render();
 }
@@ -400,6 +417,7 @@ async function renderRecord() {
       ${ready ? '' : `<div class="box warn"><div class="h">初次設定還沒完成</div>還沒下載語音辨識模型。可以先錄，轉逐字稿前到「設定」下載（約 1.6 GB，一次）。</div>`}
       <div class="form" style="margin-top:14px">
         <label>錄音來源</label><div class="radios">${srcs.map(([v, l, ok]) => `<label class="radio${R.source === v ? ' on' : ''}"><input type="radio" name="src" value="${v}"${R.source === v ? ' checked' : ''}${ok ? '' : ' disabled'}>${l}${ok ? '' : '（找不到裝置）'}</label>`).join('')}</div>
+        <label>會議語言</label><div>${langRadios('rlang', R.language)}<div class="note" style="margin-top:4px">選會議實際講的語言；英文會議選中文會被翻成中文、容易幻覺。</div></div>
         <label>會議名稱</label><input type="text" id="rName" value="${esc(R.name)}" placeholder="選填；留空＝摘要後由模型取名">
         ${labelInputs}
         <label>與會者</label><input type="text" id="rAtt" value="${esc(R.attendees)}" placeholder="選填，逗號分隔；填了就照人數分離、摘要用人名">
@@ -446,6 +464,7 @@ function recRail(ctx) {
 function wireRecord() {
   const R = S.rec;
   $$('#view input[name=src]').forEach((r) => r.onchange = () => { R.source = r.value; renderRecord(); });
+  $$('#view input[name=rlang]').forEach((r) => r.onchange = () => { R.language = r.value; renderRecord(); });
   if ($('#rName')) $('#rName').oninput = (e) => { R.name = e.target.value; };
   if ($('#rAtt')) $('#rAtt').oninput = (e) => { R.attendees = e.target.value; };
   $$('#view [data-rl]').forEach((i) => i.onchange = async () => {
@@ -454,7 +473,7 @@ function wireRecord() {
   });
   $$('#view .rail [data-tm]').forEach((cb) => cb.onchange = () => api('set_todo', cb.dataset.tm, Number(cb.dataset.ti), cb.checked));
   if ($('#rStart')) $('#rStart').onclick = async () => {
-    const r = await api('record_start', { source: R.source, labels: R.labels, name: R.name, attendees: R.attendees });
+    const r = await api('record_start', { source: R.source, language: R.language, labels: R.labels, name: R.name, attendees: R.attendees });
     if (r.ok === false) return toast(r.error, 5000);
     (r.notes || []).forEach((n) => toast(n, 6000));
     R.phase = 'live'; R.job = r.job; R.notes = []; S.recLive = { elapsed: 0, db: -90, levels: [] }; R.ran = false;
@@ -480,7 +499,7 @@ function wireRecord() {
     S.busy = 'pipeline'; S.busyJob = R.job; R.ran = true; renderStatus(); renderRecord();
   };
   if ($('#rOpen')) $('#rOpen').onclick = () => openMeeting(R.job);
-  if ($('#rNew')) $('#rNew').onclick = () => { S.rec = { phase: 'setup', source: R.source, labels: { ...R.labels }, name: '', attendees: R.attendees, notes: [], ctx: R.ctx, result: null, job: '' }; renderRecord(); };
+  if ($('#rNew')) $('#rNew').onclick = () => { S.rec = { phase: 'setup', source: R.source, language: R.language, labels: { ...R.labels }, name: '', attendees: R.attendees, notes: [], ctx: R.ctx, result: null, job: '' }; renderRecord(); };
   drawWave();
 }
 function drawWave() {

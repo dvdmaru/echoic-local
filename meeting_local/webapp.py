@@ -234,6 +234,7 @@ class Api:
             "has_audio": (m.folder / "audio.wav").exists(),
             "stt": stt.get("engine") or "", "stt_host": stt.get("base_url_host") or "",
             "stt_failed": meta.get("stt_failed") or None,
+            "language": meta.get("language") if meta.get("language") in config.LANGUAGES else config.WHISPER_LANGUAGE,
             "stt_partial": self._partial_loss(meta, stt),
             "context": ctx,
         }
@@ -375,11 +376,13 @@ class Api:
         self._rec_labels = {k: v for k, v in (opts.get("labels") or {}).items()}
         if any(v.strip() for v in self._rec_labels.values()):
             library.write_meta(job, labels=self._rec_labels)
+        from .outputs import update_run_json
         attendees = (opts.get("attendees") or "").strip()
         if attendees:
             from .cli import parse_attendees
-            from .outputs import update_run_json
             update_run_json(job / "run.json", attendees=parse_attendees(attendees))
+        if opts.get("language") in config.LANGUAGES:  # 轉錄時照這場選的語言（重轉可改）
+            update_run_json(job / "run.json", language=opts["language"])
         for n in notes:
             self._say("⚠️ " + n)
         self._say(f"開始錄音：{job}")
@@ -446,7 +449,8 @@ class Api:
         return cands[-1] if cands else job_name
 
     @_expected
-    def run_pipeline(self, mid: str, summary: bool | None = None, attendees: str = "", engine: str = "") -> dict:
+    def run_pipeline(self, mid: str, summary: bool | None = None, attendees: str = "", engine: str = "",
+                     language: str = "") -> dict:
         from .cli import STT_FAILED, SUMMARY_FAILED
 
         s = settings.load()
@@ -457,6 +461,8 @@ class Api:
                 "--engine", eng, "--speed", s["local_speed"]]
         if attendees.strip():
             argv += ["--attendees", attendees.strip()]
+        if language in config.LANGUAGES:  # 「重轉」選的語言；會記進這場 run.json，下次沿用
+            argv += ["--language", language]
         if not re.match(r"^\d{4}-\d{2}-\d{2}-\d{4}$", mid):
             argv.append("--no-rename")  # 使用者自己取的名字就保留
 

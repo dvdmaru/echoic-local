@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import platform
 import re
@@ -393,7 +394,8 @@ def cmd_record(args: argparse.Namespace) -> Path:
     job.mkdir(parents=True, exist_ok=True)
     wav = job / "audio.wav"
     info = record(wav, system_audio=args.system, mic_name=args.mic, source=args.source)
-    update_run_json(job / "run.json", job=job.name, record=info, tool_version=__version__)
+    extra = {"language": args.language} if getattr(args, "language", None) else {}
+    update_run_json(job / "run.json", job=job.name, record=info, tool_version=__version__, **extra)
     log(f"錄音存於 {wav}")
     _refresh_index(job)
     return job
@@ -414,19 +416,23 @@ def cmd_transcribe(args: argparse.Namespace) -> Path:
     log(f"音檔 {info['duration']/60:.1f} 分鐘（{info['codec']} {info['sample_rate']} Hz {info['channels']} ch）")
     _memory_hint()
     model_wav, levels = _model_wav(job, wav, args)
+    run_json = job / "run.json"
+    lang = meeting_language(args, run_json)
+    log(f"會議語言：{config.LANGUAGES.get(lang, lang)}")
 
     # 詞彙表：正確寫法進 whisper 提示；沒有檔就放範本
     if glossary.ensure_file(config.GLOSSARY):
         log(f"📝 已放詞彙表範本：{config.GLOSSARY}（填正確寫法與常見錯寫，之後每場都會用）")
     terms = glossary.load(config.GLOSSARY)
-    prompt = glossary.whisper_prompt(args.prompt, terms, config.WHISPER_PROMPT_MAX_CHARS)
+    base_prompt = args.prompt if getattr(args, "prompt", None) is not None else config.default_prompt(lang)
+    prompt = glossary.whisper_prompt(base_prompt, terms, config.WHISPER_PROMPT_MAX_CHARS)
     if terms:
         log(f"詞彙表 {len(terms)} 條（提示用 {len(prompt)} 字）")
     attendees = parse_attendees(getattr(args, "attendees", None))
 
-    run_json = job / "run.json"
     update_run_json(run_json, job=job.name, source=str(src), audio=info, audio_levels=levels,
-                    normalized=(model_wav != wav), attendees=attendees or None, tool_version=__version__)
+                    normalized=(model_wav != wav), attendees=attendees or None, tool_version=__version__,
+                    language=lang)
 
     # 1. 語音辨識：本機 whisper（預設）或使用者自選的線上 API
     engine = stt_engine(args)
@@ -436,10 +442,10 @@ def cmd_transcribe(args: argparse.Namespace) -> Path:
         # 在喇叭外放、收音偏遠的 47 秒錄音上把那句指令回吐三次、真正的話一句都沒有；不帶提示就整段轉對。
         # 繁體本來就由後面的 OpenCC 轉，指令句對線上服務沒有幫助。本機 whisper 不受影響，照舊帶完整提示。
         api_prompt = glossary.whisper_prompt("", terms, config.WHISPER_PROMPT_MAX_CHARS) or None
-        segments, stt_info = _stt_api(job, model_wav, api_prompt)
+        segments, stt_info = _stt_api(job, model_wav, api_prompt, lang)
         prompt = api_prompt or ""
     else:
-        segments, stt_info = _stt_local(job, model_wav, prompt, args)
+        segments, stt_info = _stt_local(job, model_wav, prompt, args, lang)
     whisper_sec = time.time() - t0
     if not segments:
         where = job / ("stt-api" if engine == "api" else "whisper-server.log")
@@ -465,9 +471,11 @@ def cmd_transcribe(args: argparse.Namespace) -> Path:
                         hallucination_runs=halluc, hallucination_coverage=round(coverage, 3),
                         stt_failed={"engine": "api", "host": stt_info.get("base_url_host"),
                                     "coverage": round(coverage, 3), "at": time.strftime("%Y-%m-%d %H:%M:%S")})
+        other = next((k for k in config.LANGUAGES if k != lang), "en")
         raise SttFailed(
-            f"線上語音辨識失敗：{coverage:.0%} 的時間是重複的幻覺（常見原因：線上會議只錄了麥克風，對方聲音隔著喇叭）。"
-            f"錄音本身可能沒問題，改用本機重轉：meeting-local transcribe \"{job}\" --engine local")
+            f"線上語音辨識失敗：{coverage:.0%} 的時間是重複的幻覺（常見原因：會議語言選錯，例如英文會議選成中文；"
+            f"或線上會議只錄了麥克風，對方聲音隔著喇叭）。錄音本身可能沒問題，改用本機重轉："
+            f"meeting-local transcribe \"{job}\" --engine local（語言選錯就加 --language {other}）")
 
     update_run_json(
         run_json,
@@ -524,11 +532,24 @@ def local_speed(args: argparse.Namespace) -> str:
     return getattr(args, "speed", None) or settings.load()["local_speed"]
 
 
-def _stt_local(job: Path, model_wav: Path, prompt: str, args: argparse.Namespace):
+def meeting_language(args: argparse.Namespace, run_json: Path) -> str:
+    """這場的語言：--language 優先，其次是這場 run.json 記的（錄音時選的、上次重轉用的），最後照預設。"""
+    given = getattr(args, "language", None)
+    if given:
+        return given
+    try:
+        saved = json.loads(run_json.read_text(encoding="utf-8")).get("language")
+    except (OSError, json.JSONDecodeError, AttributeError):
+        saved = None
+    return saved if saved in config.LANGUAGES else config.WHISPER_LANGUAGE
+
+
+def _stt_local(job: Path, model_wav: Path, prompt: str, args: argparse.Namespace, language: str = config.WHISPER_LANGUAGE):
     """本機 whisper-server（stderr 導檔，程序保證收掉）。"""
     use_vad = bool(getattr(args, "vad", False)) and not getattr(args, "no_vad", False)
     speed = local_speed(args)
-    server = WhisperServer(log_path=job / "whisper-server.log", vad=use_vad, background=(speed == "background"))
+    server = WhisperServer(log_path=job / "whisper-server.log", vad=use_vad, background=(speed == "background"),
+                           language=language)
     log(f"啟動 whisper-server（port {server.port}，VAD={'on' if server.vad else 'off'}，max-context={server.max_context}，"
         f"{SPEED_LABELS[speed]}），log → {server.log_path.name}")
     with server:
@@ -547,7 +568,7 @@ def _stt_local(job: Path, model_wav: Path, prompt: str, args: argparse.Namespace
     return segments, info
 
 
-def _stt_api(job: Path, model_wav: Path, prompt: str | None):
+def _stt_api(job: Path, model_wav: Path, prompt: str | None, language: str = config.WHISPER_LANGUAGE):
     """使用者自選的線上 API：上傳錄音，回來的段落跟本機路線走同一條後處理。"""
     from . import stt_api
 
@@ -559,7 +580,7 @@ def _stt_api(job: Path, model_wav: Path, prompt: str | None):
                            "或執行 meeting-local config --set-api-key")
     log("⚠️ " + stt_api.warning(base))
     log(f"線上語音辨識：{stt_api.host_of(base)}，模型 {model}")
-    segments, info = stt_api.transcribe(model_wav, job, base, model, key, config.WHISPER_LANGUAGE, prompt,
+    segments, info = stt_api.transcribe(model_wav, job, base, model, key, language, prompt,
                                         log=log, chunk_seconds=config.STT_CHUNK_SECONDS)
     from .srt import render_srt
 
@@ -789,6 +810,11 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--threshold", type=float, default=config.DIARIZE_THRESHOLD,
                         help=f"自動分群門檻，越大分出的人越少（預設 {config.DIARIZE_THRESHOLD}；真實會議 0.5 會爆成上百人）")
 
+    def common_language(sp: argparse.ArgumentParser) -> None:
+        sp.add_argument("--language", choices=list(config.LANGUAGES), default=None,
+                        help="會議語言：zh 中文／en 英文（英文會議選 zh 會被翻成中文、容易幻覺）；"
+                             "沒給就用這場上次的設定，再沒有就照預設")
+
     def common_transcribe(sp: argparse.ArgumentParser) -> None:
         common_diarize(sp)
         sp.add_argument("--no-diarize", action="store_true", help="跳過說話人分離")
@@ -797,7 +823,9 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--no-vad", action="store_true", help="關掉 whisper VAD（蓋過 --vad）")
         sp.add_argument("--no-normalize", action="store_true", help="不做響度正規化，直接用原檔辨識")
         sp.add_argument("--min-run", type=int, default=3, help="連續幾段相同視為幻覺迴圈（預設 3）")
-        sp.add_argument("--prompt", default=config.DEFAULT_PROMPT, help="whisper 初始提示（詞彙表的正確寫法會自動接在後面）")
+        sp.add_argument("--prompt", default=None,
+                        help="whisper 初始提示（預設依會議語言；詞彙表的正確寫法會自動接在後面）")
+        common_language(sp)
         sp.add_argument("--engine", choices=settings.ENGINES, default=None,
                         help="這次的語音辨識：local 本機 whisper／api 線上 API（會上傳錄音）；沒給就照設定")
         sp.add_argument("--speed", choices=settings.LOCAL_SPEEDS, default=None,
@@ -869,7 +897,7 @@ def build_parser() -> argparse.ArgumentParser:
     sp.set_defaults(func=cmd_ui)
 
     sp = sub.add_parser("record", help="錄音")
-    common_out(sp); common_record(sp)
+    common_out(sp); common_record(sp); common_language(sp)
     sp.set_defaults(func=cmd_record)
 
     sp = sub.add_parser("transcribe", help="轉錄＋去重＋繁體＋說話人分離")
