@@ -47,6 +47,8 @@ class Recorder:
         self._pow_acc = 0.0
         self._pow_n = 0
         self._peak = -90.0
+        # 每收到一段 PCM 就呼叫（即時字幕用）。在讀取執行緒裡跑，要快；出錯不能拖垮錄音。
+        self.listeners: list = []
 
     @property
     def recording(self) -> bool:
@@ -87,6 +89,11 @@ class Recorder:
             self._pow_acc += 10 ** (r / 10)
             self._pow_n += 1
             self._peak = max(self._peak, p)
+            for fn in list(self.listeners):
+                try:
+                    fn(chunk)
+                except Exception:  # 即時字幕壞了照樣錄音
+                    pass
 
     def stop(self) -> dict:
         """停止並收尾。回傳 {ok, duration, note, mean_db, peak_db, message}。"""

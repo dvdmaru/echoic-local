@@ -229,3 +229,9 @@ pre.snip { background: #0b1110; border: 1px solid var(--line); border-radius: 10
 @media (max-width: 760px) {
   #app { flex-direction: column; height: auto; } #side { width: auto; } .article, .pad, .settings { padding-left: 16px; padding-right: 16px; }
 }
+/* 即時字幕 */
+.caps { background: var(--card); border: 1px solid var(--line2); border-radius: 12px; padding: 8px 14px; margin-top: 8px; max-height: 360px; overflow-y: auto; }
+.caps .cap { display: grid; grid-template-columns: 64px 1fr; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.caps .cap:last-child { border-bottom: 0; }
+.caps .cap .mono { color: var(--mint); font-size: 12px; padding-top: 3px; }
+.caps .zh { color: var(--sun); margin-top: 2px; }

@@ -290,6 +290,14 @@ def _meeting_folder(path: str, out_root: Path) -> Path:
     return p.resolve()
 
 
+def cmd_live_check(args: argparse.Namespace) -> int:
+    from . import live
+
+    ok, msg = live.check_connection()
+    print(("✅ " if ok else "❌ ") + msg)
+    return 0 if ok else 1
+
+
 def cmd_mcp(args: argparse.Namespace) -> int:
     from .mcp_server import main as mcp_main
 
@@ -891,6 +899,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp = sub.add_parser("mcp", help="MCP 伺服器（stdio）：讓你授權的 AI 助理讀會議；要先在 App 或 config --mcp on 打開")
     sp.add_argument("--out", default=str(config.OUT_ROOT), help=f"會議根目錄（預設 {config.OUT_ROOT}）")
     sp.set_defaults(func=cmd_mcp)
+
+    sp = sub.add_parser("live-check", help="測試即時字幕的翻譯連線（送一句固定的英文給 Claude，不含會議內容）")
+    sp.set_defaults(func=cmd_live_check)
 
     sp = sub.add_parser("label", help="替會議設定分類（例：--label 客戶=A公司 --label 專案=官網改版）")
     sp.add_argument("paths", nargs="+", help="會議資料夾（可只給資料夾名稱）")

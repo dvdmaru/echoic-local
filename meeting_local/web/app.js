@@ -397,6 +397,43 @@ async function runPipeline(id, engine = '', language = '') {
 }
 
 // ------------------------------------------------------------------ 錄音
+// 即時字幕（開會當下看；正式紀錄仍是會後整場轉錄）
+function liveOk() { const s = S.boot.settings; return !!(s.has_api_key && (s.has_anthropic_key || s.anthropic_login)); }
+function liveRow(R) {
+  const s = S.boot.settings, ok = liveOk(), zh = R.language === 'zh';
+  return `<label class="check" style="margin:0"><input type="checkbox" id="rLive"${R.live && ok ? ' checked' : ''}${ok ? '' : ' disabled'}><span>開會中看字幕${zh ? '' : '＋中文翻譯'}，還能問「這件事有沒有人問過」</span></label>
+    <div class="note" style="margin-top:4px">${ok ? `⚠️ 會把錄音一句一句上傳到 ${esc(s.stt_api_host)} 辨識，辨識出的文字送到 Anthropic（Claude）${zh ? '' : '翻譯、'}回答提問。正式紀錄仍是會後整場轉錄。` : '要先到「設定 › 即時字幕」填 Anthropic API key，也要有線上語音辨識的 API key。'}</div>`;
+}
+function capsHtml() {
+  const L = S.live; if (!L) return '';
+  const rows = Object.values(L.lines).filter((l) => l.status !== 'skip').sort((a, b) => a.i - b.i);
+  if (!rows.length) return '<div class="note">還沒有字幕：有人講完一句，約 3 秒後出現。</div>';
+  return rows.map((l) => `<div class="cap"><span class="mono">${esc(l.t)}</span><div>${l.text ? esc(l.text) : '<span class="muted">…辨識中</span>'}${l.zh ? `<div class="zh">${esc(l.zh)}</div>` : (l.status === 'translating' ? '<div class="zh muted">…翻譯中</div>' : '')}</div></div>`).join('');
+}
+function renderCaps() {
+  const box = $('#caps'); if (!box || !S.live) return;
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
+  box.innerHTML = capsHtml();
+  if (atBottom) box.scrollTop = box.scrollHeight;
+  const st = $('#liveSt'); if (st) st.textContent = S.live.error ? '⚠️ ' + S.live.error : '只供開會中參考；正式紀錄是會後整場轉錄';
+}
+function liveSection() {
+  return `<section style="margin-top:20px"><div style="display:flex;gap:10px;align-items:baseline"><h2 style="margin:0;font-size:17px;color:var(--sun)">即時字幕</h2>
+      <span class="note" id="liveSt">只供開會中參考；正式紀錄是會後整場轉錄</span></div>
+    <div class="caps" id="caps">${capsHtml()}</div>
+    <div class="chips" style="margin-top:10px"><input type="text" id="askIn" placeholder="有沒有人問過…？（例：退貨率、素材什麼時候要給）" aria-label="有沒有人問過" style="flex:1;min-width:240px"><button class="btn" id="askBtn" type="button">問</button></div>
+    <div id="askOut">${(S.live && S.live.answers || []).map(answerHtml).join('')}</div></section>`;
+}
+function answerHtml(a) { return `<div class="box" style="margin-top:8px"><div class="h">${esc(a.q)}</div>${a.pending ? '<span class="muted">…讀逐字稿中</span>' : mdLite(a.a)}</div>`; }
+async function askLive() {
+  const inp = $('#askIn'); if (!inp || !inp.value.trim() || !S.live) return;
+  const q = inp.value.trim(); inp.value = '';
+  const a = { q, a: '', pending: true }; (S.live.answers = S.live.answers || []).unshift(a);
+  const out = $('#askOut'); if (out) out.innerHTML = S.live.answers.map(answerHtml).join('');
+  const r = await api('live_ask', q);
+  a.pending = false; a.a = r.ok === false ? '⚠️ ' + r.error : r.answer;
+  const o2 = $('#askOut'); if (o2) o2.innerHTML = S.live.answers.map(answerHtml).join('');
+}
 async function renderRecord() {
   crumbs([{ t: '錄音', cur: true }]);
   const R = S.rec, t = S.tree, b = S.boot;
@@ -418,6 +455,7 @@ async function renderRecord() {
       <div class="form" style="margin-top:14px">
         <label>錄音來源</label><div class="radios">${srcs.map(([v, l, ok]) => `<label class="radio${R.source === v ? ' on' : ''}"><input type="radio" name="src" value="${v}"${R.source === v ? ' checked' : ''}${ok ? '' : ' disabled'}>${l}${ok ? '' : '（找不到裝置）'}</label>`).join('')}</div>
         <label>會議語言</label><div>${langRadios('rlang', R.language)}<div class="note" style="margin-top:4px">選會議實際講的語言；英文會議選中文會被翻成中文、容易幻覺。</div></div>
+        <label>即時字幕</label><div>${liveRow(R)}</div>
         <label>會議名稱</label><input type="text" id="rName" value="${esc(R.name)}" placeholder="選填；留空＝摘要後由模型取名">
         ${labelInputs}
         <label>與會者</label><input type="text" id="rAtt" value="${esc(R.attendees)}" placeholder="選填，逗號分隔；填了就照人數分離、摘要用人名">
@@ -431,6 +469,7 @@ async function renderRecord() {
         <canvas class="wave" id="wave" height="240"></canvas>
         <div class="chips"><button class="btn hot" id="rStop" type="button" style="min-height:44px">■ 停止錄音</button><span class="spacer"></span>
         <span class="muted small">${esc(labelsText(R.labels) || '未分類')}${R.attendees ? ' · ' + esc(R.attendees) : ''}</span></div></div>
+      ${S.live ? liveSection() : ''}
       <section style="margin-top:20px"><div style="display:flex;gap:10px;align-items:baseline"><h2 style="margin:0;font-size:17px;color:var(--sun)">我的筆記</h2>
         <span class="note">邊錄邊打，按 Enter 記一行，自動記下錄音時間；做摘要時會參考</span></div>
         <div class="notes" style="margin-top:8px">${R.notes.map((n) => `<div class="n"><span class="mono">${esc(n.t)}</span><span>${esc(n.text)}</span></div>`).join('')}
@@ -465,6 +504,10 @@ function wireRecord() {
   const R = S.rec;
   $$('#view input[name=src]').forEach((r) => r.onchange = () => { R.source = r.value; renderRecord(); });
   $$('#view input[name=rlang]').forEach((r) => r.onchange = () => { R.language = r.value; renderRecord(); });
+  if ($('#rLive')) $('#rLive').onchange = (e) => { R.live = e.target.checked; renderRecord(); };
+  if ($('#askBtn')) $('#askBtn').onclick = askLive;
+  if ($('#askIn')) $('#askIn').onkeydown = (e) => { if (e.key === 'Enter' && !e.isComposing) askLive(); };
+  if ($('#caps')) { const c = $('#caps'); c.scrollTop = c.scrollHeight; }
   if ($('#rName')) $('#rName').oninput = (e) => { R.name = e.target.value; };
   if ($('#rAtt')) $('#rAtt').oninput = (e) => { R.attendees = e.target.value; };
   $$('#view [data-rl]').forEach((i) => i.onchange = async () => {
@@ -473,8 +516,10 @@ function wireRecord() {
   });
   $$('#view .rail [data-tm]').forEach((cb) => cb.onchange = () => api('set_todo', cb.dataset.tm, Number(cb.dataset.ti), cb.checked));
   if ($('#rStart')) $('#rStart').onclick = async () => {
-    const r = await api('record_start', { source: R.source, language: R.language, labels: R.labels, name: R.name, attendees: R.attendees });
+    const wantLive = !!(R.live && liveOk());
+    const r = await api('record_start', { source: R.source, language: R.language, labels: R.labels, name: R.name, attendees: R.attendees, live: wantLive });
     if (r.ok === false) return toast(r.error, 5000);
+    S.live = wantLive && !(r.notes || []).some((n) => n.startsWith('即時字幕沒有開成')) ? { v: 0, lines: {}, answers: [] } : null;
     (r.notes || []).forEach((n) => toast(n, 6000));
     R.phase = 'live'; R.job = r.job; R.notes = []; S.recLive = { elapsed: 0, db: -90, levels: [] }; R.ran = false;
     renderSide(); renderRecord(); setTimeout(() => $('#noteIn') && $('#noteIn').focus(), 50);
@@ -499,7 +544,7 @@ function wireRecord() {
     S.busy = 'pipeline'; S.busyJob = R.job; R.ran = true; renderStatus(); renderRecord();
   };
   if ($('#rOpen')) $('#rOpen').onclick = () => openMeeting(R.job);
-  if ($('#rNew')) $('#rNew').onclick = () => { S.rec = { phase: 'setup', source: R.source, language: R.language, labels: { ...R.labels }, name: '', attendees: R.attendees, notes: [], ctx: R.ctx, result: null, job: '' }; renderRecord(); };
+  if ($('#rNew')) $('#rNew').onclick = () => { S.rec = { phase: 'setup', source: R.source, language: R.language, live: R.live, labels: { ...R.labels }, name: '', attendees: R.attendees, notes: [], ctx: R.ctx, result: null, job: '' }; S.live = null; renderRecord(); };
   drawWave();
 }
 function drawWave() {
@@ -598,6 +643,12 @@ async function renderSettings() {
           <label>API key</label><input type="password" id="aKey" placeholder="${s.has_api_key ? '已存過，留空就沿用' : '只存在這台電腦'}" autocomplete="off">
           <label>快速填入</label><div class="chips">${Object.entries(b.presets).map(([n, [u, m]]) => `<button class="btn" type="button" data-pre="${esc(u)}|${esc(m)}">${esc(n)}</button>`).join('')}</div></div>
         <p class="warnline">${esc(b.api_warning)}</p><button class="btn primary" id="aSave" type="button">儲存並改用線上</button></details></section>
+    <section id="liveSec"><h2>即時字幕（開會當下看）</h2>
+      <p class="note" style="margin:0">錄音時可以打開：每講完一句，約 3 秒出字幕和中文翻譯，還能問「這件事有沒有人問過」。正式的會議紀錄仍是會後整場轉錄。即時字幕一律用上面的線上語音辨識${s.has_api_key ? '' : '（還沒設定 API key）'}，翻譯與提問用 Anthropic 的 Claude（${esc(s.live_translate_model)}）。</p>
+      <p class="warnline" style="margin:0">⚠️ 開了以後，錄音會一句一句上傳到 ${esc(s.stt_api_host)}，辨識出的文字送到 Anthropic。公司或客戶的會議，先確認可以；每場錄音前自己決定要不要開。</p>
+      <div class="form"><label>Anthropic API key</label><input type="password" id="lKey" placeholder="${s.has_anthropic_key ? '已存過；貼新的會取代' : 'sk-ant-…，只存在這台電腦'}" autocomplete="off"></div>
+      <div class="note">目前：${s.has_anthropic_key ? 'key 已設定' : (s.anthropic_login ? '沒存 key，會用這台電腦 ant auth login 的登入' : '還沒設定')}</div>
+      <div class="chips"><button class="btn primary" id="lSave" type="button">儲存 key</button><button class="btn" id="lTest" type="button">測試連線</button><span class="note" id="lMsg"></span>${s.has_anthropic_key ? '<button class="btn" id="lDel" type="button">刪除 key</button>' : ''}</div></section>
     <section><h2>摘要</h2>
       <label class="check"><input type="checkbox" id="sAuto"${s.auto_summary ? ' checked' : ''}${b.has_claude ? '' : ' disabled'}><span>轉完逐字稿後，自動用 Claude 產生摘要</span></label>
       <p class="note">${b.has_claude ? '摘要用這台電腦登入的 Claude Code，算進你自己 Claude 方案的用量：一小時的會議大約送出 4～5 萬字。不勾也能用，想要哪場再按「產生摘要」。' : '沒有偵測到 Claude Code，只會產出逐字稿。安裝並登入後重開 App 就能用。'}</p></section>
@@ -631,6 +682,10 @@ async function renderSettings() {
     await save({ stt_engine: 'local' }); renderSettings();
   });
   $('#sBg').onchange = (e) => save({ local_speed: e.target.checked ? 'background' : 'fast' });
+  const saveKey = async (key) => { const r = await api('save_anthropic_key', key); $('#lKey').value = ''; if (r.ok === false) return toast(r.error); S.boot.settings = r.settings; renderSettings(); toast(key ? '已儲存' : '已刪除'); };
+  $('#lSave').onclick = () => { const k = $('#lKey').value.trim(); if (!k) return toast('先貼上 Anthropic API key'); saveKey(k); };
+  if ($('#lDel')) $('#lDel').onclick = () => saveKey('');
+  $('#lTest').onclick = async () => { $('#lMsg').textContent = '測試中（送一句固定的英文，不含會議內容）…'; const r = await api('live_check'); $('#lMsg').textContent = (r.ok ? '✅ ' : '❌ ') + r.message; };
   $$('#view [data-pre]').forEach((x) => x.onclick = () => { const [u, m] = x.dataset.pre.split('|'); $('#aUrl').value = u; $('#aModel').value = m; });
   $('#aSave').onclick = async () => {
     const url = $('#aUrl').value, model = $('#aModel').value, key = $('#aKey').value;
@@ -766,7 +821,7 @@ async function pollTick() {
   if (polling || !window.pywebview) return;
   polling = true;
   try {
-    const p = await api('poll', S.cursor);
+    const p = await api('poll', S.cursor, (S.live && S.live.v) || 0);
     S.cursor = p.cursor;
     if (p.log.length) {
       S.log.push(...p.log); if (S.log.length > 3000) S.log.splice(0, 1000);
@@ -781,6 +836,11 @@ async function pollTick() {
       const sc = $('#sideclock'); if (sc) sc.textContent = fmtClock(p.rec.elapsed); else if (first) renderSide();
       if (S.view === 'record') { const c = $('#rClock'); if (c) c.textContent = fmtClock(p.rec.elapsed); const n = $('#nowT'); if (n) n.textContent = fmtClock(p.rec.elapsed);
         const db = $('#rDb'); if (db) db.textContent = Math.round(p.rec.db) + ' dB'; drawWave(); }
+    }
+    if (p.live && S.live) {
+      for (const ln of p.live.lines) S.live.lines[ln.i] = ln;
+      S.live.v = p.live.v; S.live.error = p.live.error;
+      if (p.live.lines.length && S.view === 'record') renderCaps();
     }
     if (p.done) await onDone(p.done);
   } catch (err) { /* 視窗關閉中 */ } finally { polling = false; }

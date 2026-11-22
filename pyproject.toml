@@ -1,6 +1,6 @@
 [project]
 name = "meeting-local"
-version = "0.7.5"
+version = "0.8.0"
 description = "Echoic 本機版：會議錄音在自己電腦轉逐字稿（whisper.cpp＋sherpa-onnx 說話人分離＋台灣正體），摘要選用自己的 Claude"
 license = {text = "MIT"}
 requires-python = ">=3.11"
@@ -10,6 +10,7 @@ dependencies = [
   "soundfile>=0.12",
   "opencc-python-reimplemented>=0.1.7",
   "pywebview>=6.2; sys_platform == 'darwin'",
+  "anthropic>=2.0",
 ]
 
 [project.optional-dependencies]

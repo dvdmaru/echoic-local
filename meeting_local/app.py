@@ -18,6 +18,12 @@ if __name__ == "__main__":  # pragma: no cover - 由 PyInstaller 呼叫
         from meeting_local.mcp_server import main as mcp_main
 
         raise SystemExit(mcp_main())
+    if len(sys.argv) > 1 and sys.argv[1] == "live-check":  # 測即時字幕的翻譯連線（封裝版也驗得到 HTTPS 憑證）
+        from meeting_local.live import check_connection
+
+        ok, msg = check_connection()
+        print(("✅ " if ok else "❌ ") + msg)
+        raise SystemExit(0 if ok else 1)
     from meeting_local import webapp
 
     if webapp.available() and "--classic" not in sys.argv:

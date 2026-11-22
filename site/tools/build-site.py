@@ -23,7 +23,7 @@ REPO = "https://github.com/dvdmaru/echoic-local"
 DMG = "EchoicLocal-mac-arm64.dmg"
 DOWNLOAD = f"{REPO}/releases/latest/download/{DMG}"
 RELEASES = f"{REPO}/releases/latest"
-VERSION = "0.7.5"
+VERSION = "0.8.0"
 DATE = "2026-11-22"
 GA_ID = os.environ.get("ECHOIC_GA_ID", "G-80DLMF08HF").strip()
 KANDONG = "https://kandong.twtools.cc/"
@@ -91,7 +91,9 @@ FAQ = [
      "可以錄你的麥克風和電腦播出的聲音。錄對方的聲音要先裝免費的 BlackHole 虛擬音源，並在「音訊 MIDI 設定」建立多重輸出裝置，步驟在安裝教學。"
      "不管錄什麼，都請先取得與會者同意。"),
     ("有即時字幕嗎？",
-     "沒有。Echoic 本機版只做會後批次轉錄：錄完再轉，換來的是預設不用連網、不用月費。"),
+     "0.8.0 起有，選用、預設關。錄音前勾「即時字幕」，每講完一句約 3 秒出現字幕，英文會議附中文翻譯，還能問「這件事有沒有人問過」。"
+     "開了會把錄音一句一句上傳到你設定的線上語音辨識服務、文字送到 Anthropic（Claude）翻譯，要你自己的 API key。"
+     "即時字幕只供開會中參考，正式紀錄仍是會後整場轉錄；不開的話，一樣不用連網、不用月費。"),
     ("逐字稿準嗎？",
      "語音辨識難免出錯，尤其是同音的專有名詞（例如「輝達」寫成「揮達」）。常錯的詞收進「詞彙表」一次，之後每場會自動修正。"
      "說話人分離在多人同時講話時也會分錯；知道與會人數就填進去，會準很多。重要內容請回聽原音，每一段都有時間戳。"),
@@ -236,7 +238,7 @@ def page_index() -> str:
 
 <section class="wrap bounds"><h2 class="sec">先說清楚做不到的</h2>
 <ul>
-<li>沒有即時字幕，只做會後轉錄。</li>
+<li>即時字幕（選用）每句講完約 3 秒才出現、偶爾漏句；正式紀錄以會後整場轉錄為準。</li>
 <li>目前只有 Apple Silicon Mac 版；Windows 版開發中。</li>
 <li>同音的專有名詞會寫錯，多人同時講話時說話人會分錯。重要內容請回聽原音。</li>
 <li>App 沒有付費的 Apple 公證：用瀏覽器下載的版本第一次打開會被 macOS 擋下來，要多做一步（<a href="/guide/#blocked">三種做法，你選</a>）。</li>
@@ -533,7 +535,7 @@ kbd{border:1px solid #ccc;border-bottom-width:2px;border-radius:5px;padding:0 5p
 def llms() -> str:
     return f"""# {NAME}（Echoic Local）
 
-> 免費開源（MIT）的 Mac 會議逐字稿工具。會後在使用者自己的電腦把錄音轉成台灣正體逐字稿（whisper.cpp 語音辨識＋sherpa-onnx 說話人分離），預設錄音不上傳；0.4.0 起可自選 OpenAI 相容的線上語音辨識（選了會上傳錄音，預設關）。摘要選用，透過使用者自己登入的 Claude Code 產生，會用到使用者自己 Claude 方案的額度，預設關閉。0.6.0 起會議可按客戶、專案分類，同專案的時間線與待辦自動彙整，可搜尋、匯出 Markdown／HTML，並以 MCP 讓使用者自己設定的 AI 助理唯讀查詢（預設關，可限範圍）；0.7.0 起介面改成資料夾樹＋閱讀頁，可直接預覽會議資料夾裡的 HTML。目前只支援 Apple Silicon Mac（macOS 13+）；沒有即時字幕。
+> 免費開源（MIT）的 Mac 會議逐字稿工具。會後在使用者自己的電腦把錄音轉成台灣正體逐字稿（whisper.cpp 語音辨識＋sherpa-onnx 說話人分離），預設錄音不上傳；0.4.0 起可自選 OpenAI 相容的線上語音辨識（選了會上傳錄音，預設關）。摘要選用，透過使用者自己登入的 Claude Code 產生，會用到使用者自己 Claude 方案的額度，預設關閉。0.6.0 起會議可按客戶、專案分類，同專案的時間線與待辦自動彙整，可搜尋、匯出 Markdown／HTML，並以 MCP 讓使用者自己設定的 AI 助理唯讀查詢（預設關，可限範圍）；0.7.0 起介面改成資料夾樹＋閱讀頁，可直接預覽會議資料夾裡的 HTML。0.8.0 起可選用開會中的即時字幕＋中文翻譯（上傳到使用者設定的線上語音辨識與 Anthropic，預設關；正式紀錄仍是會後轉錄）。目前只支援 Apple Silicon Mac（macOS 13+）。
 
 ## 頁面
 - [首頁與下載]({BASE}/)：功能、限制、下載連結。

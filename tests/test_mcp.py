@@ -40,7 +40,7 @@ def test_initialize_and_tools_list(env):
     assert rpc(server, "initialize", {"protocolVersion": "1999-01-01"})["result"]["protocolVersion"] == "2025-06-18"
     tools = rpc(server, "tools/list")["result"]["tools"]
     assert {t["name"] for t in tools} == {"list_categories", "list_meetings", "search_meetings", "get_meeting",
-                                          "get_transcript", "get_project_thread", "list_open_todos"}
+                                          "get_transcript", "get_project_thread", "list_open_todos", "get_live_transcript"}
     assert all(t["annotations"]["readOnlyHint"] for t in tools)
     assert server.handle({"jsonrpc": "2.0", "method": "notifications/initialized"}) is None
     assert rpc(server, "nope")["error"]["code"] == -32601

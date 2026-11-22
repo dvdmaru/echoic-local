@@ -58,6 +58,7 @@ class Api:
         self._release: dict | None = None
         self._progress: dict | None = None   # 下載進度：{"label", "done", "total"}，給畫面畫進度條
         self._rec_labels: dict = {}
+        self._live = None  # 這場的即時字幕（live.LiveSession），停止錄音後保留到下一場，畫面還看得到
 
     # ------------------------------------------------------------ 共用
     def _say(self, text: str) -> None:
@@ -140,7 +141,31 @@ class Api:
             "stt_api_host": stt_api.host_of(s["stt_api_base_url"]), "has_api_key": stt_api.load_key() is not None,
             "update_check": s["update_check"], "categories": s["categories"],
             "mcp_enabled": s["mcp_enabled"], "mcp_transcripts": s["mcp_transcripts"], "mcp_scope": s["mcp_scope"],
+            **self._live_settings(),
         }
+
+    @staticmethod
+    def _live_settings() -> dict:
+        from . import live
+
+        return {"has_anthropic_key": live.load_anthropic_key() is not None, "anthropic_login": live.has_anthropic_login(),
+                "live_translate_model": live.TRANSLATE_MODEL}
+
+    def live_check(self) -> dict:
+        from . import live
+
+        ok, msg = live.check_connection()
+        return {"ok": ok, "message": msg}
+
+    @_expected
+    def save_anthropic_key(self, key: str) -> dict:
+        from . import live
+
+        key = (key or "").strip()
+        if key and not key.startswith("sk-ant-"):
+            raise ValueError("Anthropic API key 會是 sk-ant- 開頭")
+        live.save_anthropic_key(key)  # 空字串＝刪掉
+        return {"ok": True, "settings": self.get_settings()}
 
     @_expected
     def save_settings(self, values: dict) -> dict:
@@ -383,15 +408,63 @@ class Api:
             update_run_json(job / "run.json", attendees=parse_attendees(attendees))
         if opts.get("language") in config.LANGUAGES:  # 轉錄時照這場選的語言（重轉可改）
             update_run_json(job / "run.json", language=opts["language"])
+        self._live = None
+        self._rec.listeners = []
+        if opts.get("live"):
+            try:
+                self._live = self._start_live(job, opts.get("language") or config.WHISPER_LANGUAGE)
+                self._rec.listeners = [self._live.feed]
+            except Exception as exc:  # 即時字幕開不起來，錄音照常
+                notes = [*notes, f"即時字幕沒有開成：{exc}（錄音照常，會後轉錄不受影響）"]
         for n in notes:
             self._say("⚠️ " + n)
         self._say(f"開始錄音：{job}")
         return {"ok": True, "job": job.name, "notes": notes}
 
+    def _start_live(self, job: Path, language: str):
+        from . import glossary, live, stt_api
+
+        missing = live.readiness(language)
+        if missing:
+            raise RuntimeError("還缺：" + "、".join(missing))
+        s = settings.load()
+        terms = glossary.load(config.GLOSSARY)
+        sess = live.LiveSession(job, language, stt_base=s["stt_api_base_url"], stt_model=s["stt_api_model"],
+                                stt_key=stt_api.load_key(), claude=live.Claude(live.load_anthropic_key()),
+                                glossary="、".join(t.canonical for t in terms[:60]), log=self._say)
+        sess.start()
+        self._say(f"即時字幕：開會中一句一句送 {stt_api.host_of(s['stt_api_base_url'])} 辨識"
+                  + ("、Claude 翻成中文" if sess.translate else "") + "；正式紀錄仍是會後整場轉錄")
+        return sess
+
+    def _finish_live(self, sess, job: Path) -> None:
+        from .outputs import update_run_json
+
+        info = sess.stop()
+        if info:
+            with contextlib.suppress(OSError):
+                update_run_json(job / "run.json", live=info)
+            self._say(f"即時字幕結束：{info.get('lines', 0)} 句（存在 live.jsonl，只供參考；正式逐字稿請轉錄）")
+
+    @_expected
+    def live_ask(self, question: str) -> dict:
+        question = (question or "").strip()
+        if not question:
+            return {"ok": False, "error": "先打想問的事"}
+        if self._live is None:
+            return {"ok": False, "error": "這場沒有開即時字幕"}
+        try:
+            return {"ok": True, "answer": self._live.ask(question)}
+        except Exception as exc:  # Anthropic 連不上等：畫面顯示原因
+            return {"ok": False, "error": f"沒有問成：{str(exc)[:200]}"}
+
     @_expected
     def record_stop(self) -> dict:
         job = self._rec.job
         res = self._rec.stop()
+        self._rec.listeners = []
+        if self._live is not None and job is not None:  # 等最後幾句辨識完再收；不擋畫面
+            threading.Thread(target=self._finish_live, args=(self._live, job), daemon=True).start()
         self._say(res.get("message", ""))
         if res.get("quiet"):
             self._say(f"⚠️ 這場偏小聲（平均 {res['mean_db']} dB）。轉錄會先正規化；想更好只能讓麥克風靠近講話的人。")
@@ -551,7 +624,7 @@ class Api:
         return {"ok": True}
 
     # ------------------------------------------------------------ 輪詢
-    def poll(self, cursor: int = 0) -> dict:
+    def poll(self, cursor: int = 0, live_v: int = 0) -> dict:
         with self._lock:
             lines = self._log[cursor:] if cursor <= len(self._log) else self._log[-200:]
             new_cursor = len(self._log)
@@ -561,8 +634,9 @@ class Api:
             rec = {"elapsed": self._rec.elapsed(), "db": lv[-1] if lv else -90.0, "levels": lv,
                    "job": self._rec.job.name if self._rec.job else ""}
         done, self._last_done = self._last_done, None
+        live = self._live.changes(int(live_v or 0)) if self._live is not None else None
         return {"cursor": new_cursor, "log": lines, "rec": rec, "busy": self._busy, "busy_job": self._busy_job,
-                "progress": self._progress, "done": done}
+                "progress": self._progress, "done": done, "live": live}
 
     def js_error(self, msg: str) -> None:
         """畫面的 JS 錯誤：記進工作紀錄與 stderr，出事查得到。"""
