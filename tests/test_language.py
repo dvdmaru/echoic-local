@@ -26,7 +26,7 @@ def job(tmp_path: Path, monkeypatch):
         seen.update(engine="local", prompt=prompt, lang=lang)
         return good, {"engine": "whisper.cpp", "local": True}
 
-    def api(job, wav, prompt, lang):
+    def api(job, wav, prompt, lang, **kw):
         seen.update(engine="api", prompt=prompt, lang=lang)
         return good, {"engine": "api", "base_url_host": "api.example"}
 

@@ -438,12 +438,15 @@ def cmd_transcribe(args: argparse.Namespace) -> Path:
     engine = stt_engine(args)
     t0 = time.time()
     if engine == "api":
-        # 線上服務只送詞彙表的專有名詞，不送「請以繁體中文逐字記錄」這種指令句：2026-11-17 實測 OpenAI whisper-1
-        # 在喇叭外放、收音偏遠的 47 秒錄音上把那句指令回吐三次、真正的話一句都沒有；不帶提示就整段轉對。
-        # 繁體本來就由後面的 OpenCC 轉，指令句對線上服務沒有幫助。本機 whisper 不受影響，照舊帶完整提示。
-        api_prompt = glossary.whisper_prompt("", terms, config.WHISPER_PROMPT_MAX_CHARS) or None
-        segments, stt_info = _stt_api(job, model_wav, api_prompt, lang)
-        prompt = api_prompt or ""
+        # 線上服務不帶任何提示。指令句：2026-11-17 OpenAI whisper-1 在收音偏遠的 47 秒錄音上把「請以繁體中文逐字記錄」
+        # 回吐三次。詞彙表：11/19、11/22 兩場都把整串詞當成內容照抄（詞彙表是全域一份，
+        # 會被帶進主題完全無關的會議）。繁體由後面的 OpenCC 轉；詞彙表照樣在轉完後修正已知錯寫、也照樣給摘要用。
+        # 本機 whisper 不受影響，照舊帶完整提示（線上壞掉的段落改用本機補轉時也帶）。
+        repair = _local_repair(job, model_wav, prompt, args, lang)
+        segments, stt_info = _stt_api(job, model_wav, None, lang, local_repair=repair)
+        if repair.meta:
+            stt_info["local_repair"] = repair.meta
+        prompt = ""
     else:
         segments, stt_info = _stt_local(job, model_wav, prompt, args, lang)
     whisper_sec = time.time() - t0
@@ -504,23 +507,10 @@ class SttFailed(RuntimeError):
 
 
 def hallucination_coverage(runs: list[dict], duration: float) -> float:
-    """幻覺迴圈佔音檔時長的比例（0～1；重疊的區段只算一次）。"""
-    if not runs or not duration:
-        return 0.0
-    spans = sorted((max(0.0, float(r["start"])), min(float(duration), float(r["end"]))) for r in runs)
-    total, cur_s, cur_e = 0.0, None, None
-    for s, e in spans:
-        if e <= s:
-            continue
-        if cur_e is None or s > cur_e:
-            if cur_e is not None:
-                total += cur_e - cur_s
-            cur_s, cur_e = s, e
-        else:
-            cur_e = max(cur_e, e)
-    if cur_e is not None:
-        total += cur_e - cur_s
-    return min(1.0, total / float(duration))
+    """幻覺迴圈佔音檔時長的比例（0～1；重疊的區段只算一次）。實作在 dedup，線上逐段檢查也用同一支。"""
+    from .dedup import hallucination_coverage as _cov
+
+    return _cov(runs, duration)
 
 
 def stt_engine(args: argparse.Namespace) -> str:
@@ -568,7 +558,45 @@ def _stt_local(job: Path, model_wav: Path, prompt: str, args: argparse.Namespace
     return segments, info
 
 
-def _stt_api(job: Path, model_wav: Path, prompt: str | None, language: str = config.WHISPER_LANGUAGE):
+class _LocalRepair:
+    """線上辨識壞掉的段落改用本機 whisper 補轉（只轉那幾段；整場不改本機、補轉的段落不會再上傳）。"""
+
+    def __init__(self, job: Path, model_wav: Path, prompt: str, args: argparse.Namespace, language: str):
+        self.job, self.model_wav, self.prompt, self.args, self.language = job, model_wav, prompt, args, language
+        self.meta: dict = {}
+
+    def __call__(self, spans: list[tuple[float, float]]) -> list[list]:
+        from .stt_api import cut_wav
+
+        work = self.job / "stt-api"
+        work.mkdir(parents=True, exist_ok=True)
+        speed = local_speed(self.args)
+        server = WhisperServer(log_path=work / "whisper-server.repair.log", vad=False,
+                               background=(speed == "background"), language=self.language)
+        out: list[list] = []
+        with server:
+            for k, (start, end) in enumerate(spans, 1):
+                piece = cut_wav(self.model_wav, start, end, work / f"repair-{k:02d}.wav")
+                try:
+                    raw = server.transcribe(piece, prompt=self.prompt)
+                finally:
+                    piece.unlink(missing_ok=True)
+                segs = []
+                for s in parse_srt(raw):
+                    s.start, s.end = s.start + start, min(s.end + start, end)
+                    segs.append(s)
+                out.append(segs)
+        self.meta = {"engine": f"whisper.cpp whisper-server ({server.binary})", "model": str(server.model),
+                     "spans": [[round(s, 1), round(e, 1)] for s, e in spans], "prompt": self.prompt, "local": True}
+        return out
+
+
+def _local_repair(job: Path, model_wav: Path, prompt: str, args: argparse.Namespace, language: str) -> _LocalRepair:
+    return _LocalRepair(job, model_wav, prompt, args, language)
+
+
+def _stt_api(job: Path, model_wav: Path, prompt: str | None, language: str = config.WHISPER_LANGUAGE,
+             local_repair=None):
     """使用者自選的線上 API：上傳錄音，回來的段落跟本機路線走同一條後處理。"""
     from . import stt_api
 
@@ -581,11 +609,11 @@ def _stt_api(job: Path, model_wav: Path, prompt: str | None, language: str = con
     log("⚠️ " + stt_api.warning(base))
     log(f"線上語音辨識：{stt_api.host_of(base)}，模型 {model}")
     segments, info = stt_api.transcribe(model_wav, job, base, model, key, language, prompt,
-                                        log=log, chunk_seconds=config.STT_CHUNK_SECONDS)
+                                        log=log, chunk_seconds=config.STT_CHUNK_SECONDS, local_repair=local_repair)
     from .srt import render_srt
 
     (job / "transcript.raw.srt").write_text(render_srt(segments), encoding="utf-8")
-    log(f"線上語音辨識完成：{len(segments)} 段，{info['chunks']} 次上傳，{info['seconds']} 秒")
+    log(f"線上語音辨識完成：{len(segments)} 段，{info.get('requests', info['chunks'])} 次上傳，{info['seconds']} 秒")
     return segments, info
 
 
@@ -732,9 +760,15 @@ def cmd_summarize(args: argparse.Namespace) -> Path:
     prev = update_run_json(job / "run.json")
     attendees = parse_attendees(getattr(args, "attendees", None)) or list(prev.get("attendees") or [])
     gl = glossary.markdown_block(glossary.load(config.GLOSSARY))
+    from .summarize import missing_spans
+
+    stt = (prev.get("models_touched") or {}).get("stt")
+    gaps = missing_spans(prev.get("hallucination_runs"))
+    if gaps:
+        log(f"⚠️ 逐字稿有 {len(gaps)} 段沒轉出內容，摘要最上面會加警告")
     md, title = build_summary(by_minute_path.read_text(encoding="utf-8"), entities_md, source=job.name,
                               model=args.model, meeting_time=meeting_time, attendees=attendees, glossary_md=gl,
-                              notes_md=_read_notes(job))
+                              notes_md=_read_notes(job), stt=stt, gaps=gaps)
     (job / "summary.md").write_text(md, encoding="utf-8")
     update_run_json(job / "run.json", title=title, attendees=attendees or None,
                     summary={"model": f"claude CLI ({args.model or 'default'})", "bytes": len(md.encode("utf-8"))})

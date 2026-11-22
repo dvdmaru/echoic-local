@@ -38,7 +38,7 @@ def run_json(j: Path) -> dict:
 def test_api_hallucination_stops_then_local_clears(job, monkeypatch):
     j, written = job
     loop = [Segment(i * 2.0, i * 2.0 + 2.0, "咳") for i in range(50)]
-    monkeypatch.setattr(cli, "_stt_api", lambda job, wav, prompt, lang: (loop, {"engine": "api", "base_url_host": "api.example"}))
+    monkeypatch.setattr(cli, "_stt_api", lambda job, wav, prompt, lang, **kw: (loop, {"engine": "api", "base_url_host": "api.example"}))
 
     rc = cli.main(["transcribe", str(j), "--engine", "api"])
     assert rc == cli.STT_FAILED
@@ -72,6 +72,6 @@ def test_partial_hallucination_on_api_still_transcribes(job, monkeypatch):
     j, written = job
     segs = [Segment(i * 2.0, i * 2.0 + 2.0, "咳") for i in range(10)]  # 0–20 秒迴圈＝20%
     segs += [Segment(20.0 + i * 8.0, 28.0 + i * 8.0, f"內容 {i}") for i in range(10)]
-    monkeypatch.setattr(cli, "_stt_api", lambda job, wav, prompt, lang: (segs, {"engine": "api", "base_url_host": "api.example"}))
+    monkeypatch.setattr(cli, "_stt_api", lambda job, wav, prompt, lang, **kw: (segs, {"engine": "api", "base_url_host": "api.example"}))
     assert cli.main(["transcribe", str(j), "--engine", "api"]) == 0
     assert written and run_json(j)["stt_failed"] is None

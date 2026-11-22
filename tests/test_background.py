@@ -111,6 +111,6 @@ def test_api_engine_end_to_end_with_fake_server(tmp_path: Path, monkeypatch):
         stt = run["models_touched"]["stt"]
         assert stt["engine"] == "api" and stt["local"] is False and stt["base_url_host"].startswith("127.0.0.1")
         assert "sk-fake" not in json.dumps(run)  # key 不進 run.json
-        assert not list((job / "stt-api").glob("*.flac"))  # 切片傳完就刪
+        assert not list((job / "stt-api").glob("*.flac")) and not list((job / "stt-api").glob("utt-*.wav"))  # 切片傳完就刪
     finally:
         srv.shutdown()

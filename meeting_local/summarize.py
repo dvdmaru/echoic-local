@@ -26,7 +26,7 @@ ENTITY_SYSTEM = """你是台灣會議逐字稿的「專名審核」助理。逐�
 只輸出一個 JSON 陣列，放在 ```json 圍欄內，元素格式：
 {"candidate": "...", "type": "...", "likely": "...", "reason": "...", "timestamps": ["HH:MM:SS"]}"""
 
-SUMMARY_SYSTEM = """你是台灣的會議記錄助理。輸入是本機 whisper 轉出的逐分鐘逐字稿（含 SPEAKER_xx 機器分離標記）與一張「專名確認表」。
+SUMMARY_SYSTEM = """你是台灣的會議記錄助理。輸入是 whisper（本機或線上）轉出的逐分鐘逐字稿（含 SPEAKER_xx 機器分離標記）與一張「專名確認表」。
 輸出繁體中文（台灣用語）的會議摘要，Markdown，結構固定如下、順序不可變、不可增減：
 
 # <會議標題>
@@ -142,9 +142,50 @@ def safe_title(title: str, max_len: int = 24) -> str:
     return t[:max_len] or "會議"
 
 
+GAP_MIN_SECONDS = 60.0  # 幻覺迴圈連續吃掉這麼久才算「缺段」；幾秒的「好好好」不吵
+
+
+def missing_spans(runs: list[dict] | None, min_seconds: float = GAP_MIN_SECONDS) -> list[tuple[float, float]]:
+    """逐字稿裡被幻覺迴圈吃掉、沒有轉出內容的時間區間（重疊的併成一段）。"""
+    from .dedup import merged_spans
+
+    return [(s, e) for s, e in merged_spans(runs or []) if e - s >= min_seconds]
+
+
+def _span_text(spans: list[tuple[float, float]]) -> str:
+    return "、".join(f"{fmt_clock(s)}–{fmt_clock(e)}（約 {max(1, round((e - s) / 60))} 分鐘）" for s, e in spans)
+
+
+def gap_notice(spans: list[tuple[float, float]]) -> str:
+    """摘要最上面的警告（程式寫的，不靠模型記得寫）。2026-11-22 實例：線上辨識 10 分鐘整段幻覺，
+    摘要照常產出、決議只涵蓋前後，品質註記在最底下，開頭沒有任何提示。"""
+    if not spans:
+        return ""
+    return (f"> ⚠️ **逐字稿缺段**：{_span_text(spans)}語音辨識只回了重複的幻覺句，沒有轉出內容。"
+            "這份摘要的決議與待辦不含這段；要補，到會議頁按「重轉…」改用本機重轉，再重新產摘要。\n\n")
+
+
+def stt_label(stt: dict | None) -> str:
+    """摘要頁首的 STT 標示：照 run.json 記的實際引擎寫（以前寫死成本機，線上轉的也寫本機）。"""
+    if not stt:
+        return "未記錄"
+    if stt.get("local") or str(stt.get("engine", "")).startswith("whisper.cpp"):
+        name = Path(str(stt.get("model") or "")).stem.removeprefix("ggml-")
+        return f"whisper.cpp {name or ''}（本機）".replace(" （", "（")
+    label = f"{stt.get('model') or '線上模型'}（線上 {stt.get('base_url_host') or '服務'}）"
+    fixed = stt.get("local_repaired_chunks") or 0
+    if fixed:
+        label += f"，其中 {fixed} 段改用本機補轉"
+    return label
+
+
 def build_summary_input(by_minute: str, entities_md: str, attendees: list[str] | None = None,
-                        glossary_md: str | None = None, notes_md: str | None = None) -> str:
+                        glossary_md: str | None = None, notes_md: str | None = None,
+                        gaps: list[tuple[float, float]] | None = None) -> str:
     parts = []
+    if gaps:
+        parts.append("## 逐字稿缺段（重要）\n\n" + _span_text(gaps) + "語音辨識失敗，沒有轉出內容。"
+                     "不要推測這段講了什麼；「一句話」要註明摘要不含這段，品質註記也要寫。")
     if attendees:
         parts.append("## 與會者\n\n" + "、".join(attendees))
     if glossary_md:
@@ -160,9 +201,11 @@ def build_summary_input(by_minute: str, entities_md: str, attendees: list[str] |
 
 def build_summary(by_minute: str, entities_md: str, source: str, model: str | None = None,
                   meeting_time: str | None = None, attendees: list[str] | None = None,
-                  glossary_md: str | None = None, notes_md: str | None = None) -> tuple[str, str]:
-    """回 (summary.md 內容, 模型決定的標題)。第一行標題會加上會議時間戳。"""
-    user = build_summary_input(by_minute, entities_md, attendees, glossary_md, notes_md)
+                  glossary_md: str | None = None, notes_md: str | None = None,
+                  stt: dict | None = None, gaps: list[tuple[float, float]] | None = None) -> tuple[str, str]:
+    """回 (summary.md 內容, 模型決定的標題)。第一行標題會加上會議時間戳。
+    stt＝run.json 的 models_touched.stt（頁首標示用）；gaps＝沒轉出內容的時間區間（標題下方警告）。"""
+    user = build_summary_input(by_minute, entities_md, attendees, glossary_md, notes_md, gaps)
     reply = _claude(SUMMARY_SYSTEM, user, model=model).strip()
     m = _TITLE_RE.search(reply)
     if m and reply.lstrip().startswith("#"):
@@ -175,8 +218,9 @@ def build_summary(by_minute: str, entities_md: str, source: str, model: str | No
     who = f"｜與會者：{'、'.join(attendees)}" if attendees else ""
     header = (
         f"<!-- 來源：{source}｜產生時間：{time.strftime('%Y-%m-%d %H:%M')}｜"
-        f"摘要模型：claude CLI（{model or 'default'}）｜STT：whisper.cpp large-v3-turbo（本機）{who} -->\n\n"
+        f"摘要模型：claude CLI（{model or 'default'}）｜STT：{stt_label(stt)}{who} -->\n\n"
         f"# {title}（{stamp}）\n\n"
+        f"{gap_notice(gaps or [])}"
     )
     return header + body.rstrip() + "\n", title
 

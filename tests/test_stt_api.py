@@ -163,7 +163,7 @@ def test_transcribe_retries_echo_chunk_without_prompt(tmp_path: Path, monkeypatc
     monkeypatch.setattr(stt_api, "request_chunk", fake_request)
     monkeypatch.setattr(stt_api, "cut_flac", fake_cut)
     monkeypatch.setattr(stt_api, "plan_chunks_for", lambda wav, s: [(0.0, 47.0)])
-    segs, info = stt_api.transcribe(tmp_path / "a.wav", tmp_path, "https://x/v1", "m", "k", "zh", PROMPT, log=lambda s: None)
+    segs, info = stt_api.transcribe(tmp_path / "a.wav", tmp_path, "https://x/v1", "m", "k", "zh", PROMPT, log=lambda s: None, split="chunk")
     assert calls == [PROMPT, None]
     assert [s.text for s in segs] == ["真的會議內容在這裡"]
     assert info["prompt_echo_retries"] == 1
