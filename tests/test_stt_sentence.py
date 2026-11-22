@@ -53,6 +53,10 @@ def test_inner_loop_detects_counting_loop_only():
     assert inner_loop(LOOP)
     assert not inner_loop("對對對對對")  # 短的不算
     assert not inner_loop("我們今天先把這一張照片換掉，然後旁白第三段的人名要改成正確的寫法")
+    # 0.7.4 的回歸：英文只有 26 個字母，長句不能被當成鬼打牆（11/20 英文會議被誤標 82 段）
+    assert not inner_loop("That is above target. What about the return rate? Last quarter it was quite high in electronics.")
+    assert not inner_loop("Okay, so, we talked about, yeah, what we're doing as a business model and the full focus on this goal.")
+    assert inner_loop("thank you " * 7)
     out, report = collapse_hallucinations([Segment(0, 5, "開場"), Segment(5, 12, LOOP), Segment(12, 15, "結尾")])
     assert [s.flag for s in out] == [None, "hallucination", None]
     assert report[0]["inner"] and report[0]["start"] == 5

@@ -28,14 +28,23 @@ def normalize(text: str) -> str:
 
 
 INNER_LOOP_MIN_CHARS = 30
-INNER_LOOP_DISTINCT = 0.25
+# 用壓縮比判斷「同一段一直重複」：whisper 自己判幻覺的門檻就是 compression ratio > 2.4。
+# ⚠️ 不要改回「不同的字佔多少」：0.7.4 用「不同的字不到 1/4」，英文只有 26 個字母，長一點的英文句子全被誤判
+# （11/20 一場英文會議 647 段誤標 82 段、約 13 分鐘）。壓縮比在中英文都適用：該場 0 誤標，
+# 「一二三四五六七八九十」×22（13.8）、「thank you」×7（3.3）照樣抓到。
+INNER_LOOP_COMPRESSION = 2.4
+
+
+def compression_ratio(text: str) -> float:
+    import zlib
+
+    raw = text.encode("utf-8")
+    return len(raw) / max(1, len(zlib.compress(raw)))
 
 
 def inner_loop(text: str) -> bool:
-    """同一段裡幾個字一直重複（2026-11-22 實例：7 秒的話回成「一二三四五六七八九十」×22，223 字只有 10 種字）。
-    正常的句子 30 字以上，不同的字通常超過一半；短的「對對對」不算。"""
-    body = normalize(text)
-    return len(body) >= INNER_LOOP_MIN_CHARS and len(set(body)) / len(body) < INNER_LOOP_DISTINCT
+    """同一段裡幾個字一直重複（2026-11-22 實例：7 秒的話回成「一二三四五六七八九十」×22）。短的「對對對」不算。"""
+    return len(normalize(text)) >= INNER_LOOP_MIN_CHARS and compression_ratio(text) > INNER_LOOP_COMPRESSION
 
 
 def collapse_hallucinations(segments: list[Segment], min_run: int = 3) -> tuple[list[Segment], list[dict]]:
